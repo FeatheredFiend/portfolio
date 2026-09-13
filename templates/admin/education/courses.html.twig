@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Courses — {{ entry.qualification }} — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}Admin: manage courses for an education entry.{% endblock %}
+
+{% block body %}
+    <section class="admin">
+        <h1>Courses — {{ entry.qualification }}</h1>
+        <p><a href="{{ path('admin_education_index') }}">&larr; Back to education list</a></p>
+
+        <a class="button button--primary" href="{{ path('admin_education_course_new', {id: entry.id}) }}">Add course</a>
+
+        <div class="admin__list">
+            {% for course in entry.courses %}
+                <article class="admin__row">
+                    <div>
+                        <strong>{{ course.name }}</strong>{% if course.grade %} — {{ course.grade }}{% endif %}
+                        <div class="admin__links-inline">
+                            {% if course.githubUrl %}<a href="{{ course.githubUrl }}">GitHub</a>{% endif %}
+                            {% if course.domainUrl %}<a href="{{ course.domainUrl }}">Live</a>{% endif %}
+                            {% if course.otherUrl %}<a href="{{ course.otherUrl }}">Other</a>{% endif %}
+                        </div>
+                    </div>
+                    <div class="admin__row-actions">
+                        <a href="{{ path('admin_education_course_edit', {id: course.id}) }}">Edit</a>
+                        <form method="post" action="{{ path('admin_education_course_delete', {id: course.id}) }}" onsubmit="return confirm('Delete this course?');">
+                            <input type="hidden" name="_token" value="{{ csrf_token('delete-course-' ~ course.id) }}">
+                            <button type="submit" class="admin__delete-button">Delete</button>
+                        </form>
+                    </div>
+                </article>
+            {% else %}
+                <p>No courses added yet.</p>
+            {% endfor %}
+        </div>
+    </section>
+{% endblock %}

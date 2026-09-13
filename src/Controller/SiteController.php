@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Content\PortfolioContent;
+use App\Repository\EducationEntryRepository;
+use App\Repository\EmploymentEntryRepository;
 use Symfony\Bridge\Twig\Attribute\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Routing\Attribute\Route;
@@ -54,10 +56,11 @@ class SiteController extends AbstractController
 
     #[Route('/experience', name: 'app_experience', methods: ['GET'])]
     #[Template('page/experience.html.twig')]
-    public function experience(): array
+    public function experience(EmploymentEntryRepository $employment, EducationEntryRepository $education): array
     {
         return [
-            'experience' => $this->content->getExperience(),
+            'employment' => $employment->findAllOrdered(),
+            'education' => $education->findAllOrdered(),
         ];
     }
 }

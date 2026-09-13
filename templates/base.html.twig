@@ -3,8 +3,9 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{% block title %}[Your Name] — Full-Stack Developer{% endblock %}</title>
+        <title>{% block title %}{{ content.hero.name }} — {{ content.hero.title }}{% endblock %}</title>
         <meta name="description" content="{% block meta_description %}Full-stack developer specialising in PHP, Symfony and Laravel — upgrades, custom tools, and API performance work.{% endblock %}">
+        {% block robots %}{% endblock %}
         <link rel="canonical" href="{{ url(app.current_route, app.current_route_parameters) }}">
 
         <meta property="og:type" content="website">
@@ -19,8 +20,8 @@
         {{ {
             "@context": "https://schema.org",
             "@type": "Person",
-            "name": "[Your Name]",
-            "jobTitle": "Full-Stack Developer",
+            "name": content.hero.name,
+            "jobTitle": content.hero.title,
             "url": url('app_home'),
             "sameAs": content.sameAsUrls
         }|json_encode|raw }}

@@ -7,14 +7,47 @@
     <section class="experience">
         <h1>Experience</h1>
         <p class="experience__framing">Ten years full-stack, PHP/Symfony/Laravel-focused, with MySQL and React/Angular front ends.</p>
-        <ol class="experience__timeline">
-            {% for job in experience %}
-                <li>
-                    <span class="experience__years">{{ job.years }}</span>
-                    <strong>{{ job.role }}</strong>
-                    <p>{{ job.impact }}</p>
-                </li>
+
+        <div class="experience__grid">
+            {% for job in employment %}
+                <article class="service-card">
+                    <span class="experience__years">
+                        {{ job.startDate|date('M Y') }} &ndash; {{ job.endDate ? job.endDate|date('M Y') : 'Present' }}
+                    </span>
+                    <h2>{{ job.companyTitle }} at {{ job.companyName }}</h2>
+                    <p class="experience__description">{{ job.description }}</p>
+                </article>
             {% endfor %}
-        </ol>
+        </div>
+
+        <h2>Education</h2>
+        <div class="experience__grid">
+            {% for degree in education %}
+                <article class="service-card">
+                    <span class="experience__years">
+                        {{ degree.startDate|date('M Y') }} &ndash; {{ degree.endDate ? degree.endDate|date('M Y') : 'Present' }}
+                    </span>
+                    <h3>{{ degree.qualification }}</h3>
+                    <p>{{ degree.university }}</p>
+
+                    {% if degree.courses|length %}
+                        <ul class="experience__courses">
+                            {% for course in degree.courses %}
+                                <li>
+                                    {{ course.name }}{% if course.grade %} — {{ course.grade }}{% endif %}
+                                    {% if course.githubUrl or course.domainUrl or course.otherUrl %}
+                                        <span class="experience__course-links">
+                                            {% if course.githubUrl %}<a href="{{ course.githubUrl }}">GitHub</a>{% endif %}
+                                            {% if course.domainUrl %}<a href="{{ course.domainUrl }}">Live</a>{% endif %}
+                                            {% if course.otherUrl %}<a href="{{ course.otherUrl }}">More</a>{% endif %}
+                                        </span>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
     </section>
 {% endblock %}

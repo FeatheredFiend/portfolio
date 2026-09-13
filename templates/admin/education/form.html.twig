@@ -1,0 +1,20 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ entry.id ? 'Edit' : 'Add' }} Education — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}Admin: edit education entry.{% endblock %}
+
+{% block body %}
+    <section class="admin">
+        <h1>{{ entry.id ? 'Edit' : 'Add' }} Education</h1>
+        <p><a href="{{ path('admin_education_index') }}">&larr; Back to education list</a></p>
+
+        {{ form_start(form) }}
+            {{ form_widget(form) }}
+            <button type="submit" class="button button--primary">Save</button>
+        {{ form_end(form) }}
+
+        {% if entry.id %}
+            <p><a href="{{ path('admin_education_courses', {id: entry.id}) }}">Manage courses for this entry &rarr;</a></p>
+        {% endif %}
+    </section>
+{% endblock %}

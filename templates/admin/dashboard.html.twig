@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}Admin dashboard.{% endblock %}
+
+{% block body %}
+    <section class="admin">
+        <h1>Admin</h1>
+        <div class="admin__links">
+            <a class="button button--primary" href="{{ path('admin_employment_index') }}">Manage Employment</a>
+            <a class="button button--primary" href="{{ path('admin_education_index') }}">Manage Education</a>
+        </div>
+        <p><a href="{{ path('app_logout') }}?_csrf_token={{ csrf_token('logout') }}">Log out</a></p>
+    </section>
+{% endblock %}

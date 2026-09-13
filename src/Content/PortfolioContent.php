@@ -13,7 +13,7 @@ class PortfolioContent
     public function getHero(): array
     {
         return [
-            'name' => '[Your Name]',
+            'name' => 'Martyn Woollard',
             'title' => 'Full-Stack Developer — PHP, Symfony & Laravel',
             'valueProp' => 'Ten years turning slow, fragile PHP apps into fast, maintainable ones — and building new tools from scratch when there isn\'t one yet.',
         ];
@@ -73,7 +73,7 @@ class PortfolioContent
                 'problem' => 'Tracking a growing tabletop miniature collection — armies, units, painting progress, and game history — in spreadsheets doesn\'t scale and leaves no visual record.',
                 'built' => 'A full-stack tracker with user accounts, army/unit management, game logging, and photo galleries for painted miniatures.',
                 'tech' => 'Symfony (API/backend), React + Vite (frontend), MySQL, deployed via GitHub Actions CI/CD.',
-                'url' => '#',
+                'url' => 'https://warhammer.proprietary-data.com',
                 'images' => [
                     ['path' => 'images/portfolio/warhammer/army-list.png', 'width' => 640, 'height' => 164],
                     ['path' => 'images/portfolio/warhammer/army-detail.png', 'width' => 640, 'height' => 398],
@@ -86,7 +86,7 @@ class PortfolioContent
                 'problem' => 'Writing a branching "choose your own adventure" gamebook by hand means tracking dozens of paragraphs, battles, and item/character state from memory — error-prone past a certain size.',
                 'built' => 'A server-rendered authoring tool for building and playing branching adventures — paragraphs, battles, heroes, equipment, and magic — with full CRUD for authors and a playable runtime for readers.',
                 'tech' => 'Symfony, Twig, MySQL/MariaDB. Actively maintained — recently upgraded across three major Symfony versions (6→8) and to PHP 8.4.',
-                'url' => '#',
+                'url' => 'https://cyoa.proprietary-data.com',
                 'images' => [
                     ['path' => 'images/portfolio/cyoa/homepage.png', 'width' => 640, 'height' => 283],
                     ['path' => 'images/portfolio/cyoa/gamebooks.png', 'width' => 640, 'height' => 67],
@@ -97,21 +97,13 @@ class PortfolioContent
         ];
     }
 
-    public function getExperience(): array
-    {
-        return [
-            ['years' => '20XX–Present', 'role' => '[Role] at [Company]', 'impact' => '[One-line, outcome-based impact]'],
-            ['years' => '20XX–20XX', 'role' => '[Role] at [Company]', 'impact' => '[One-line impact]'],
-        ];
-    }
-
     public function getSocialLinks(): array
     {
         return [
-            'email' => '[your@email]',
-            'linkedin' => '#',
+            'email' => 'martynwoollardwebdev@gmail.com',
+            'linkedin' => 'https://www.linkedin.com/in/martyn-woollard-347b8b128',
             'github' => 'https://github.com/FeatheredFiend',
-            'facebook' => '#',
+            'facebook' => 'https://www.facebook.com/ProprietaryData/',
         ];
     }
 

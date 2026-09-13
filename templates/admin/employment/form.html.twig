@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ entry.id ? 'Edit' : 'Add' }} Employment — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}Admin: edit employment entry.{% endblock %}
+
+{% block body %}
+    <section class="admin">
+        <h1>{{ entry.id ? 'Edit' : 'Add' }} Employment</h1>
+        <p><a href="{{ path('admin_employment_index') }}">&larr; Back to employment list</a></p>
+
+        {{ form_start(form) }}
+            {{ form_widget(form) }}
+            <button type="submit" class="button button--primary">Save</button>
+        {{ form_end(form) }}
+    </section>
+{% endblock %}

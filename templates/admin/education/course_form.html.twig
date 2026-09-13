@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ form.vars.value.id ? 'Edit' : 'Add' }} Course — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}Admin: edit course.{% endblock %}
+
+{% block body %}
+    <section class="admin">
+        <h1>{{ form.vars.value.id ? 'Edit' : 'Add' }} Course</h1>
+        <p><a href="{{ path('admin_education_courses', {id: entry.id}) }}">&larr; Back to courses</a></p>
+
+        {{ form_start(form) }}
+            {{ form_widget(form) }}
+            <button type="submit" class="button button--primary">Save</button>
+        {{ form_end(form) }}
+    </section>
+{% endblock %}

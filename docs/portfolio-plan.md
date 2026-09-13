@@ -9,7 +9,7 @@ A personal portfolio site to showcase full-stack development skills (10 years ex
 - **Backend**: Symfony 8.1, PHP 8.4+ (matches existing subdomain server config)
 - **Frontend build**: Vite, via `pentatrion/vite-bundle` (corrected 2026-09-13 — not an actual "Symfony UX" package despite the name; it's the community bundle that fills that role and is what most Symfony+Vite tutorials, including SymfonyCasts', actually use)
 - **React**: mounted into specific `<div id="...-root">` containers in Twig, not a full SPA
-- **Database**: none required unless project data should be editable without redeploying — otherwise hardcode project/portfolio data in Twig/YAML config
+- **Database**: MariaDB, used for Employment/Education content (see Admin & Database section below, added 2026-09-13) — everything else (hero, services, tech stack, projects) stays hardcoded in `PortfolioContent`/Twig, since it doesn't need editing without a redeploy
 - **Hosting/deployment**: Hostinger, file manager upload (no SSH/FTP), same `/public` document-root pattern as other subdomains (cyoa.proprietary-data.com, Warhammer gallery)
 
 ## Repository & Local Development Environment — DONE (2026-09-13)
@@ -97,6 +97,80 @@ Build Order step 8. Most of the checklist was already satisfied during the backe
 ## Cross-Browser Testing — DONE (2026-09-13)
 Build Order step 9. Ran the full functional suite (all 6 pages load, contact form fills+submits+shows success, gallery lightbox opens/closes, mobile nav toggle opens) through real Playwright-driven Chromium, Firefox, and WebKit — not just Chromium as in earlier passes. Zero console/page errors on any engine. Also screenshotted the homepage in Firefox and WebKit for visual comparison — pixel-identical to Chromium at 1280px width, no engine-specific layout or font-rendering issues.
 
+## Admin & Database — DONE (2026-09-13)
+All 9 Build Order steps were done and the site was working entirely off hardcoded content when the
+need for this came up: real Employment/Education history needs to be editable without a redeploy,
+plus richer per-course project links as old university projects get redeployed as subdomains over
+time. That's a real, ongoing editing need — the "Database: none required unless..." condition in
+Architecture above is now met, so this reverses that earlier no-DB decision (for just this content;
+everything else stays hardcoded).
+
+### Schema
+- **`EmploymentEntry`**: `startDate`, `endDate` (null = current), `companyName`, `companyTitle`,
+  `description` (freetext — deliberately not split into more fields, per direct instruction), `position`.
+- **`EducationEntry`**: `startDate`, `endDate`, `university`, `qualification`, `position`.
+- **`EducationCourse`** (many-to-one to `EducationEntry`, cascade delete): `name`, `grade`,
+  `githubUrl`, `domainUrl`, `otherUrl`, `position` — one row per course/module taken during a
+  degree, each with its own optional GitHub/live/other links, so old coursework projects can link
+  out as they get redeployed as real subdomains.
+- **`User`** (`app_user` table): email + hashed password + roles, for admin login only — no
+  public-facing accounts exist or are planned.
+
+Iterated on this schema twice with the user before migrating (course-level "uni" field turned out
+to be redundant with the parent entry's university, dropped after asking rather than guessing a
+third time) — cheap to get right before running a migration, expensive after.
+
+### Auth
+Symfony's built-in `form_login` (`security.yaml`), not a custom authenticator — this is a single
+hardcoded-role admin account, the simplest fit already built into SecurityBundle. `access_control`
+gates `^/admin` behind `ROLE_ADMIN`; `/login` is explicitly `PUBLIC_ACCESS`. Login/logout live in
+`SecurityController`, template at `templates/security/login.html.twig` (styled via the existing
+`.contact-form` CSS classes rather than new ones).
+
+**Creating the real admin account**: `docker compose exec -it php php bin/console app:create-admin-user <email>` —
+prompts for a hidden password interactively (never accepted as a CLI argument, so it never ends up
+in shell history or, since Claude Code sees its own tool output, in a conversation transcript
+either). Run this yourself in your own terminal; needs `-it` for the interactive prompt to work.
+
+### Admin CRUD
+`src/Controller/Admin/` — `DashboardController` (`/admin`), `EmploymentController`
+(`/admin/employment`, standard index/new/edit/delete), `EducationController`
+(`/admin/education/...` plus nested `/admin/education/{id}/courses/...` for per-degree courses).
+Symfony Form + Validator throughout, matching every other form in the app. Courses are managed as
+their own small CRUD scoped to a parent education entry, not a JS-driven inline collection —
+simpler to get right and to test without needing to verify client-side add/remove behavior.
+
+### Public-facing change
+`/experience` was rebuilt from a plain `<ol>` timeline to a card grid (`.service-card`, reusing the
+Services page's visual language) for both Employment and Education, since a real DB-backed content
+type warranted looking less like a placeholder list. Each education card shows its courses inline
+with grade and any GitHub/live/other links.
+
+### Padlock
+Top-right of the nav (`_nav.html.twig`, after the Contact button) — a plain inline SVG lock icon
+linking straight to `/admin`. No visible state change whether logged in or out: unauthenticated,
+`access_control` redirects it to `/login`; authenticated, it opens the dashboard directly.
+
+### Testing
+`doctrine:database:create --env=test` + `doctrine:migrations:migrate --env=test` set up a real
+`portfolio_test` database (the `symfony` DB user needed `GRANT` from root first — it only had
+privileges on the main `portfolio` schema by default). `tests/Controller/Admin/` covers: anonymous
+`/admin` redirects to `/login`; an authenticated request (via `loginUser()`, no real login-form
+submission needed) succeeds; and full create→edit→delete round trips for both Employment and
+Education-with-a-nested-Course, asserting the public `/experience` page reflects each change. 14
+tests, 44 assertions, all passing.
+
+### Verified live (Playwright, real browser)
+Logged in through the actual login form (not `loginUser()`), created a real employment entry and
+an education entry with a course through the real admin UI, confirmed both appear correctly on the
+public `/experience` page as cards. The throwaway test account and test rows created for this were
+deleted from the dev database afterward — they were never meant to be real content.
+
+### Known gaps
+- No `npm run dev`/HMR verified (same standing gap as the React Islands section above).
+- The 4 existing hardcoded arrays in `PortfolioContent` (services, tech stack, projects, hero) were
+  deliberately left as-is — no stated need to edit those without a redeploy yet.
+
 ## Where React Is Used (islands only)
 - Contact form (client-side validation + async submit to a Symfony API endpoint)
 - Portfolio gallery (filtering, lightbox for project screenshots)
@@ -109,7 +183,8 @@ Everything else (hero, services copy, experience timeline, nav, footer) stays pl
 - **Services**: 3–5 cards, problem-first framing, outcome-based language (not just tech names)
 - **Tech stack**: visual grid grouped by category (Backend, Frontend, DB, Tools)
 - **Portfolio/Projects**: links out to live subdomains as real demos, with screenshots + short case-study blurbs (problem → what was built → tech used)
-- **Experience**: brief timeline, 10 years, key milestones
+- **Experience**: brief timeline, 10 years, key milestones, plus an Education sub-section — both
+  are DB-backed cards, editable via `/admin` (added 2026-09-13, see Admin & Database section)
 - **Contact**: form (async submit to Symfony backend) + direct links to email, LinkedIn, Facebook
 - **Footer**: social links, subdomain links, GitHub, copyright
 
@@ -163,6 +238,11 @@ This is the production release process, separate from the Docker Compose stack u
 
 ## Open Items (fill in before/during build)
 - Confirm exact PHP version + any module availability on the hosting plan (already confirmed: 8.4)
-- Real URLs for email, LinkedIn, Facebook, GitHub, and each project subdomain
+- ~~Real URLs for email, LinkedIn, GitHub, Facebook, and each project subdomain~~ — DONE
+  (2026-09-13): name (Martyn Woollard), email, LinkedIn, Facebook, and both subdomain URLs are real now.
+- Real employment and education history — no longer hardcoded placeholders to fill in; as of
+  2026-09-13 this is a database (see Admin & Database section), currently empty. Add your real
+  employment and both degrees (MSc + BEng (Hons) Computer Science, institution/dates/courses) via
+  `/admin` (padlock icon, top-right nav) once you've created your own admin login.
 - Final service list/copy
 - Project case-study content and screenshots

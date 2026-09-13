@@ -5,7 +5,7 @@ is the source text to wire into templates/YAML config in step 4. Anything in `[b
 your input before it's real.
 
 ## Home / Hero
-- **Name**: [Your Name]
+- **Name**: Martyn Woollard
 - **Title**: Full-Stack Developer — PHP, Symfony & Laravel
 - **Value prop**: Ten years turning slow, fragile PHP apps into fast, maintainable ones — and
   building new tools from scratch when there isn't one yet.
@@ -58,7 +58,7 @@ per card.
   logging, and photo galleries for painted miniatures.
 - **Tech used**: Symfony (API/backend), React + Vite (frontend), MySQL, deployed via GitHub
   Actions CI/CD.
-- **Links**: [live subdomain URL] · [screenshots]
+- **Links**: https://warhammer.proprietary-data.com · screenshots in `public/images/portfolio/warhammer/`
 
 ### Choose-Your-Own-Adventure Builder
 - **Problem**: Writing a branching "choose your own adventure" gamebook by hand means tracking
@@ -69,26 +69,27 @@ per card.
   a playable runtime for readers.
 - **Tech used**: Symfony, Twig, MySQL/MariaDB. Actively maintained — recently upgraded across
   three major Symfony versions (6→8) and to PHP 8.4.
-- **Links**: [live subdomain URL] · [screenshots]
+- **Links**: https://cyoa.proprietary-data.com · screenshots in `public/images/portfolio/cyoa/`
 
 (Add more entries here as more subdomain projects go live.)
 
-## Experience
-**Needs your input** — I don't have your real employment history, so don't want to invent dates,
-employers, or achievements. Structure per the plan (brief timeline, 10 years, key milestones):
+## Experience & Education
+**No longer hardcoded here** — as of 2026-09-13 both live in the database and are managed through
+the admin CRUD at `/admin` (padlock icon, top-right nav), not this file. See
+`docs/portfolio-plan.md`'s "Admin & Database" section for the schema. Still needs your input either
+way — add your real employment history and both degrees (MSc + BEng (Hons) Computer Science,
+institution/dates/courses) once you have your own admin login.
 
-- 20XX–Present: [Role] at [Company] — [one-line, outcome-based impact]
-- 20XX–20XX: [Role] at [Company] — [one-line impact]
-- ...
-- Framing line: 10 years full-stack, PHP/Symfony/Laravel-focused, with MySQL and React/Angular
-  front ends.
+Framing line (still hardcoded, in the page template): 10 years full-stack,
+PHP/Symfony/Laravel-focused, with MySQL and React/Angular front ends.
 
 ## Contact
 - **Headline**: Have a project or a problem? Let's talk.
 - **Form fields**: Name, Email, Message (client-validated, async submit)
-- **Direct links**: Email · LinkedIn · GitHub (`FeatheredFiend`) · Facebook
+- **Direct links**: martynwoollardwebdev@gmail.com · linkedin.com/in/martyn-woollard-347b8b128 ·
+  GitHub (`FeatheredFiend`) · Facebook (still needs a real link)
 
 ## Footer
 - Social: LinkedIn, Facebook, GitHub
 - Projects: miniature tracker, CYOA builder subdomain links
-- © [Year] [Your Name]
+- © [Year] Martyn Woollard
