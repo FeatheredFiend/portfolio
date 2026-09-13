@@ -8,6 +8,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -29,6 +30,14 @@ class CreateAdminUserCommand extends Command
     protected function configure(): void
     {
         $this->addArgument('email', InputArgument::REQUIRED, 'Admin login email');
+        $this->addOption(
+            'password-env',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Read the password from this environment variable instead of an interactive hidden '
+            .'prompt — for scripted/CI use only (e.g. a GitHub Actions secret, which GitHub masks '
+            .'in logs), never pass a real password as a plain CLI argument.',
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -36,10 +45,14 @@ class CreateAdminUserCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $email = $input->getArgument('email');
 
-        $question = new Question('Password (hidden): ');
-        $question->setHidden(true);
-        $question->setHiddenFallback(false);
-        $password = $this->getHelper('question')->ask($input, $output, $question);
+        if ($passwordEnv = $input->getOption('password-env')) {
+            $password = getenv($passwordEnv) ?: null;
+        } else {
+            $question = new Question('Password (hidden): ');
+            $question->setHidden(true);
+            $question->setHiddenFallback(false);
+            $password = $this->getHelper('question')->ask($input, $output, $question);
+        }
 
         if (!$password) {
             $io->error('No password entered.');

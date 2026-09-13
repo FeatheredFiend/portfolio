@@ -1,0 +1,38 @@
+name: Create/reset production admin user
+
+# No SSH access on Hostinger, so app:create-admin-user can't be run there
+# directly. This runs it from CI against the real production database
+# instead, using --password-env so the password only ever exists as a
+# GitHub secret (masked in logs) - never typed into a prompt output or
+# passed as a plain CLI argument.
+#
+# Safe to re-run any time to reset the password for the same email.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  create-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: ctype, iconv, intl, gd, pdo_mysql, mbstring
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Create admin user
+        env:
+          APP_ENV: prod
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          APP_SECRET: ${{ secrets.PROD_APP_SECRET }}
+          ADMIN_PASSWORD: ${{ secrets.PROD_ADMIN_PASSWORD }}
+        run: |
+          php bin/console app:create-admin-user "${{ secrets.PROD_ADMIN_EMAIL }}" --password-env=ADMIN_PASSWORD --no-interaction

@@ -279,8 +279,52 @@ Pick one distinctive design element (asymmetric hero layout, a signature accent 
 8. SEO pass (see checklist above) — DONE (2026-09-13), see SEO Pass section above
 9. Cross-browser/device testing — DONE (2026-09-13), see Cross-Browser Testing section above
 
-## Deployment Workflow (no SSH, file manager only)
-This is the production release process, separate from the Docker Compose stack used for local dev (see above). Dry-run verified 2026-09-13, see Deployment Prep section above for what that caught.
+## Deployment Workflow — GitHub Actions + FTP (revised 2026-09-13)
+**Superseded the original manual file-manager plan below** once `warhammer`'s `.github/workflows/`
+was found to already have a proven, working pattern for this exact Hostinger account — no SSH
+access, so it deploys over FTP from CI rather than clicking through the file manager, and generates
+migration SQL to paste into phpMyAdmin rather than running migrations directly (no console access
+either). Replicated for `portfolio` as `.github/workflows/deploy.yml` and `migration-sql.yml`,
+adapted for this app's Vite/`pentatrion` build (no separate `frontend/` dir or AssetMapper compile
+step — `npm run build` writes straight to `public/build/`).
+
+### One-time setup (you do this — needs your Hostinger/GitHub access, not something I can do)
+Add these as **repository secrets** on `FeatheredFiend/portfolio` (Settings → Secrets and variables
+→ Actions) — never paste actual values into chat, just add them directly in GitHub:
+- `PROD_APP_SECRET` — a fresh random string, not the dev value committed in `compose.yaml`.
+- `PROD_DATABASE_URL` — e.g. `mysql://USER:PASS@HOST:3306/propriet_portfolio?serverVersion=10.11.18-MariaDB&charset=utf8mb4`.
+  Get the exact host/user/password from Hostinger's hPanel → Databases (same place `cyoa`'s
+  `propriet_cyoa`-style DB was set up) — shared MySQL hosting is very often reachable as `localhost`
+  from the app's own PHP, but confirm there rather than assuming.
+- `PROD_MAILER_DSN` — e.g. `smtp://martyn%40proprietary-data.com:APP_PASSWORD@HOST:587` (URL-encode
+  `@` as `%40` in the username). Get the exact SMTP host/port for `martyn@proprietary-data.com` from
+  hPanel → Emails → your domain → Connection details — don't guess this one, mail hosts vary.
+- `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD` — FTP credentials for the `portfolio` subdomain's own
+  document root (separate from `warhammer`'s FTP secrets, even though they may share the same FTP
+  server host).
+- `PROD_ADMIN_EMAIL`, `PROD_ADMIN_PASSWORD` — only needed once, for the **Create/reset production
+  admin user** workflow below; safe to leave in place afterwards to reset the password later if
+  needed, or delete once you're logged in.
+
+### Every deploy after that
+1. Push/merge the changes you want live to `main`.
+2. If this deploy adds/changes a migration: run the **Generate migration SQL** workflow (Actions tab
+   → select it → Run workflow), copy the printed SQL, paste and run it in Hostinger's phpMyAdmin
+   against `propriet_portfolio`. First-ever run needs the full schema (all tables); later runs only
+   need the new migration's block, since earlier statements are already applied.
+3. Run the **Deploy to Hostinger** workflow (same Actions tab, `workflow_dispatch`) — installs deps,
+   writes `.env.local` from the secrets above, builds Vite assets, warms the prod cache, and FTPs
+   everything (minus tests/docs/dev-only files) to the subdomain's document root.
+4. First deploy only: run the **Create/reset production admin user** workflow (same Actions tab) —
+   calls `app:create-admin-user` against the real production database using the `PROD_ADMIN_EMAIL`/
+   `PROD_ADMIN_PASSWORD` secrets, via a new `--password-env` option added to that command
+   specifically for this (password only ever exists as a masked GitHub secret, never a logged
+   argument or prompt output). Safer than trying to do this through phpMyAdmin, since it needs the
+   real password hasher, not just an INSERT. Re-runnable any time to reset the password later.
+
+<details>
+<summary>Original manual file-manager plan (superseded, kept for reference)</summary>
+
 1. Develop locally inside the Docker Compose stack (`docker compose up`, `npm run dev` for Vite HMR against the containerized backend)
 2. Set production `.env.local` FIRST (`APP_ENV=prod`, fresh `APP_SECRET`, real `DATABASE_URL`, real `MAILER_DSN`) — must exist before step 3, or composer's own post-install cache:clear script crashes (see Deployment Prep gotcha above).
 3. `composer install --no-dev --optimize-autoloader`
@@ -291,6 +335,8 @@ This is the production release process, separate from the Docker Compose stack u
 8. `symfony/apache-pack`'s `.htaccess` in `public/` handles routing through `index.php` — no extra rewrite rules needed (no client-side router to account for)
 9. Run `php bin/console doctrine:migrations:migrate --env=prod` once, against the real production database, to create the `app_user`/`employment_entry`/`education_entry`/`education_course` tables (they don't exist there yet)
 10. Run `php bin/console app:create-admin-user <email> --env=prod` once, the same way as locally, to get a real admin login on the live site
+
+</details>
 
 ## Open Items (fill in before/during build)
 - Confirm exact PHP version + any module availability on the hosting plan (already confirmed: 8.4)

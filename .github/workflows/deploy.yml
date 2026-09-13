@@ -1,0 +1,97 @@
+name: Deploy to Hostinger
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: ctype, iconv, intl, gd, pdo_mysql, mbstring, apcu
+          coverage: none
+
+      - name: Install Composer dependencies
+        # APP_ENV=prod so post-install auto-scripts don't try to boot dev-only
+        # bundles (e.g. DebugBundle) that --no-dev has already removed.
+        env:
+          APP_ENV: prod
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      # Writes a real .env.local (git-ignored, generated fresh per deploy) so
+      # the app doesn't need server-side env var configuration, which
+      # Hostinger shared hosting doesn't expose. Deliberately NOT using
+      # `composer dump-env`: it ignores real process env vars by design and
+      # only reflects the committed .env files, so it can't be used to inject
+      # CI secrets - it would silently ship the dev DATABASE_URL to prod.
+      # Written before the build/warmup steps below so they run against the
+      # real prod config, not the dummy values in the committed .env.
+      - name: Write production environment
+        run: |
+          cat > .env.local <<'ENVEOF'
+          APP_ENV=prod
+          APP_SECRET=${{ secrets.PROD_APP_SECRET }}
+          DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
+          MAILER_DSN=${{ secrets.PROD_MAILER_DSN }}
+          ENVEOF
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        # Outputs directly to public/build/ (Vite manifest + versioned files),
+        # no separate frontend/ directory or asset-mapper compile step needed.
+        run: npm run build
+
+      # With APP_DEBUG off, Symfony trusts an existing compiled container
+      # cache forever and never re-checks it against source - see
+      # ResourceCheckerConfigCache::isFresh(), which short-circuits to `true`
+      # when there are no resource checkers (only registered in debug mode).
+      # Since var/cache/prod travels with the deploy (see the FTP step
+      # below), it must be rebuilt here on every run so it matches this
+      # commit's code, or prod would keep serving a stale/incompatible
+      # container after any change to services, routes, or entities.
+      - name: Warm up production cache
+        env:
+          APP_ENV: prod
+        run: php bin/console cache:clear --env=prod --no-interaction
+
+      - name: Deploy over FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftps
+          server-dir: ./
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/tests/**
+            **/var/log/**
+            **/var/share/**
+            **/.github/**
+            **/compose*.yaml
+            **/nginx.conf
+            **/.env
+            **/.env.dev
+            **/.env.test
+            **/AGENTS.md
+            **/CLAUDE.md
+            **/docs/**
+            **/content/**
