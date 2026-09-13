@@ -119,10 +119,12 @@ jobs:
           cat >> public/.htaccess <<'ENVDENYEOF'
 
           # Added at deploy time: never serve these over HTTP even though
-          # they must stay on disk (.env.local has real secrets;
-          # composer.json is required by Kernel::getProjectDir()'s
-          # auto-detection, see the step comment above).
-          <FilesMatch "^(\.env\.local|composer\.json)$">
+          # they must stay on disk (.env.local has real secrets; .env has
+          # committed non-secret defaults - see the DEFAULT_URI note below -
+          # but no reason to expose it either; composer.json is required by
+          # Kernel::getProjectDir()'s auto-detection, see the step comment
+          # above).
+          <FilesMatch "^(\.env|\.env\.local|composer\.json)$">
               <IfModule mod_authz_core.c>
                   Require all denied
               </IfModule>
@@ -156,6 +158,18 @@ jobs:
           restore-keys: |
             ftp-deploy-sync-state-
 
+      # .env (committed, non-secret defaults only - real secrets live in
+      # .env.local, written above) is deliberately NOT excluded below,
+      # despite an earlier version of this workflow excluding it "to be
+      # safe": Symfony's compiled prod container needs DEFAULT_URI (defined
+      # only in .env, used to build the router's RequestContext service)
+      # even for normal HTTP requests, not just the CLI context its comment
+      # suggests. Excluding .env caused a blank prod 500 on every route
+      # (EnvNotFoundException, only visible via a diagnostic script since
+      # APP_DEBUG=0 hides it). .env.local is loaded after .env and correctly
+      # overrides APP_ENV/APP_SECRET/DATABASE_URL/MAILER_DSN as intended;
+      # it's still denied over HTTP below alongside .env.local, same as any
+      # other file PHP needs on disk but nobody should fetch directly.
       - name: Deploy over FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -178,7 +192,6 @@ jobs:
             **/.github/**
             **/compose*.yaml
             **/nginx.conf
-            **/.env
             **/.env.dev
             **/.env.test
             **/AGENTS.md
