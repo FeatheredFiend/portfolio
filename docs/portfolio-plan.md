@@ -340,6 +340,32 @@ Add these as **repository secrets** on `FeatheredFiend/portfolio` (Settings → 
   password later. `.github/workflows/create-admin.yml` is left in the repo in case Remote MySQL
   access gets enabled later, but isn't the working path today.
 
+### Security incident (2026-09-13): exposed source tree and `.env.local`
+The first real deploy left the live domain serving an Apache directory listing of the entire
+project — `vendor/`, `src/`, `config/`, `migrations/`, and critically `.env.local` (real DB
+password, SMTP password, `APP_SECRET`) were all publicly browsable and downloadable. Root cause:
+`proprietary-data.com`'s document root is permanently fixed to `public_html` for the primary domain
+(hPanel shows "No configuration options currently exist" for it — only addon/subdomains get a
+custom document root), so uploading the project as-is put the whole tree, not just `public/`'s
+contents, at the web root.
+
+**Immediate mitigation**: manually deleted everything in `public_html` via File Manager.
+**Real fix**: `.github/workflows/deploy.yml` now has a "Restructure for fixed public_html document
+root" step that runs before the FTP upload — moves `public/`'s contents up to the deploy root
+(fixing `index.php`'s `dirname(__DIR__)` → `__DIR__` since it's no longer nested a level down), and
+drops a deny-all `.htaccess` into `vendor/`, `src/`, `config/`, `templates/`, `translations/`, `var/`
+(PHP's own `require`/`include` reads these straight off disk and never goes through Apache, so
+they're still fully usable by the app — just not requestable over HTTP), plus a `<Files
+".env.local">` deny block appended to the root `.htaccess`. Also trimmed the FTP `exclude` list to
+drop files never needed at runtime (`assets/` source, `bin/`, `migrations/`, `composer.*`,
+`symfony.lock`, `package*.json`, `vite.config.js`, `phpunit.dist.xml`) — smaller attack surface and
+a smaller/faster transfer. Verified the exact shell logic against a mock project tree before
+trusting it against production.
+
+**Still to do after this redeploys**: rotate the three credentials that were exposed in the window
+before mitigation (DB password, SMTP password, `APP_SECRET`) as a precaution, updating the
+corresponding GitHub secrets and redeploying again afterward.
+
 ### Every deploy after that
 1. Push/merge the changes you want live to `main`.
 2. If this deploy adds/changes a migration: run the **Generate migration SQL** workflow (Actions tab

@@ -69,6 +69,60 @@ jobs:
           APP_ENV: prod
         run: php bin/console cache:clear --env=prod --no-interaction
 
+      # This host's primary domain has its document root permanently fixed to
+      # public_html (hPanel's domain management shows "No configuration
+      # options currently exist" for it - only addon/subdomains support a
+      # custom document root), so the whole project can't just be uploaded
+      # as-is with the document root pointed at public/ the normal way. This
+      # was discovered the hard way: an earlier deploy without this step
+      # left public_html serving an Apache directory listing of the entire
+      # project - including .env.local, with real DB/mailer credentials.
+      #
+      # Fix: move public/'s contents up so index.php lands directly at the
+      # deploy root (matching public_html), and lock down every other
+      # top-level thing PHP still needs on disk (vendor/, src/, config/,
+      # templates/, translations/, var/, .env.local) with a deny-all
+      # .htaccess/<Files> block. PHP's own require()/include() reads files
+      # directly off disk and never goes through Apache, so this doesn't
+      # break the app - it only blocks the same files from being served as
+      # plain HTTP responses. Only ever touches this CI checkout, never the
+      # repo - local dev keeps using the normal public/ layout via nginx,
+      # which doesn't consult .htaccess at all.
+      - name: Restructure for fixed public_html document root
+        run: |
+          set -e
+          sed -i 's#dirname(__DIR__)#__DIR__#' public/index.php
+          for dir in vendor src config templates translations var; do
+            if [ -d "$dir" ]; then
+              cat > "$dir/.htaccess" <<'DENYEOF'
+          <IfModule mod_authz_core.c>
+              Require all denied
+          </IfModule>
+          <IfModule !mod_authz_core.c>
+              Order allow,deny
+              Deny from all
+          </IfModule>
+          DENYEOF
+            fi
+          done
+          cat >> public/.htaccess <<'ENVDENYEOF'
+
+          # Added at deploy time: never serve the real production secrets file.
+          <Files ".env.local">
+              <IfModule mod_authz_core.c>
+                  Require all denied
+              </IfModule>
+              <IfModule !mod_authz_core.c>
+                  Order allow,deny
+                  Deny from all
+              </IfModule>
+          </Files>
+          ENVDENYEOF
+          shopt -s dotglob
+          mv public/* .
+          shopt -u dotglob
+          rmdir public
+
       # Every GitHub-hosted run starts from a clean checkout with no memory of
       # what's already on the server, so without this, FTP-Deploy-Action
       # treats every file (including all of vendor/, thousands of files) as
@@ -117,3 +171,14 @@ jobs:
             **/CLAUDE.md
             **/docs/**
             **/content/**
+            assets/**
+            **/bin/**
+            **/migrations/**
+            **/composer.json
+            **/composer.lock
+            **/symfony.lock
+            **/package.json
+            **/package-lock.json
+            **/vite.config.js
+            **/phpunit.dist.xml
+            **/README*
