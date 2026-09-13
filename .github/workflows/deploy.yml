@@ -207,7 +207,13 @@ jobs:
       # recurring.
       #
       # cmd:fail-exit off so a first-ever deploy (nothing to delete/mirror
-      # yet on a brand new server) doesn't fail the job.
+      # yet on a brand new server) doesn't fail the job. No
+      # mirror:parallel-transfer-count here deliberately: this host's FTPS
+      # stack doesn't handle multiple simultaneous TLS-negotiated data
+      # connections ("gnutls_handshake: An unexpected TLS packet was
+      # received") - every lftp command elsewhere in this workflow is
+      # single-connection and has been reliable, so the mirror stays
+      # sequential too rather than risk the same failure.
       - name: Sync var/cache/prod and remove stale remote cache
         run: |
           sudo apt-get -qq update && sudo apt-get -qq install -y lftp
@@ -215,7 +221,6 @@ jobs:
             set ssl:verify-certificate no;
             set ftp:ssl-force true;
             set cmd:fail-exit no;
-            set mirror:parallel-transfer-count 3;
             open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} ftps://${{ secrets.FTP_SERVER }}:21;
             rm -rf src/var;
             rm -f .ftp-deploy-sync-state.json;
