@@ -72,6 +72,47 @@ main {
     padding: 0.4rem 0.9rem;
 }
 
+.site-nav__toggle-input {
+    display: none;
+}
+
+.site-nav__toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.3rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    cursor: pointer;
+}
+
+.site-nav__toggle span {
+    display: block;
+    height: 2px;
+    background: var(--color-text);
+    border-radius: 1px;
+}
+
+@media (max-width: 40rem) {
+    .site-nav__toggle {
+        display: flex;
+    }
+
+    .site-nav nav {
+        display: none;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-basis: 100%;
+        order: 3;
+        padding-top: 1rem;
+    }
+
+    .site-nav__toggle-input:checked ~ nav {
+        display: flex;
+    }
+}
+
 /* Buttons */
 .button {
     display: inline-block;

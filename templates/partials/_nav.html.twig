@@ -1,5 +1,9 @@
 <header class="site-nav">
     <a class="site-nav__brand" href="{{ path('app_home') }}">{{ content.hero.name }}</a>
+    <input type="checkbox" id="nav-toggle" class="site-nav__toggle-input">
+    <label for="nav-toggle" class="site-nav__toggle" aria-label="Toggle navigation">
+        <span></span><span></span><span></span>
+    </label>
     <nav>
         <a href="{{ path('app_home') }}">Home</a>
         <a href="{{ path('app_services') }}">Services</a>

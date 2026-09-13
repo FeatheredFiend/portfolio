@@ -75,7 +75,15 @@ Build Order steps 5–6. Installed `pentatrion/vite-bundle` via `composer requir
 ### Known gaps / next session
 - No `npm run dev` / HMR workflow verified yet — rebuild with `npm run build` after any change to `assets/`.
 - `content/copy.md`'s bracketed placeholders (name, employment history, real social/subdomain URLs, contact email) are still open — see Open Items below.
-- Responsive pass (Build Order step 7), SEO pass beyond what's already done (step 8), and cross-browser testing (step 9) not yet done.
+- SEO pass beyond what's already done (step 8) and cross-browser testing (step 9) not yet done.
+
+## Responsive Pass — DONE (2026-09-13)
+Build Order step 7. Verified with real Playwright screenshots at iPhone 12 width (390px), a mid-size 700px width, and checked `scrollWidth` vs `clientWidth` on all six pages (zero horizontal overflow anywhere) rather than guessing from the CSS alone.
+
+- **Nav**: below 40rem, a pure-CSS checkbox-driven hamburger toggle replaces the wrapped-links layout that existed before (links used to break across two uneven rows) — no JS needed, no new dependency for something this simple.
+- **Hero**: below 48rem, the two-column asymmetric layout (main text + tech-stack panel) collapses to one column and hides the panel (already built during the backend pass, confirmed still correct here).
+- **Grids** (services, tech stack, projects, image galleries): already responsive via `repeat(auto-fit, minmax(...))`, no changes needed — collapse to single column naturally as the viewport narrows.
+- **Forms**: contact form fields are block-level/full-width already, no fixed widths to break.
 
 ## Where React Is Used (islands only)
 - Contact form (client-side validation + async submit to a Symfony API endpoint)
@@ -126,7 +134,7 @@ Pick one distinctive design element (asymmetric hero layout, a signature accent 
 4. Symfony backend: routing, Twig shells, contact form endpoint, per-route meta tag logic — DONE (2026-09-13), see Backend & Templates section below
 5. React components via Vite: contact form, portfolio gallery/lightbox — DONE (2026-09-13), see React Islands section below
 6. Integrate React into Twig templates (mount points per page) — DONE (2026-09-13), folded into step 5
-7. Responsive pass (mobile-first, real breakpoints)
+7. Responsive pass (mobile-first, real breakpoints) — DONE (2026-09-13), see Responsive Pass section above
 8. SEO pass (see checklist above)
 9. Cross-browser/device testing
 
