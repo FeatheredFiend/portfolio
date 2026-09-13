@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Tech Stack — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}The languages, frameworks, and tools used to build and ship full-stack applications.{% endblock %}
+
+{% block body %}
+    <section class="tech-stack">
+        <h1>Tech Stack</h1>
+        <div class="tech-stack__grid">
+            {% for category, items in techStack %}
+                <div class="tech-stack__category">
+                    <h2>{{ category }}</h2>
+                    <ul>
+                        {% for item in items %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+{% endblock %}

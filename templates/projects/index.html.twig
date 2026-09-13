@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Projects — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}Live projects and case studies: a miniature collection tracker and a choose-your-own-adventure builder.{% endblock %}
+
+{% block body %}
+    <section class="projects">
+        <h1>Projects</h1>
+        <div class="projects__grid">
+            {% for project in projects %}
+                <article class="project-card" id="{{ project.slug }}">
+                    <h2>{{ project.name }}</h2>
+                    {% if project.images|length %}
+                        <div class="project-card__images">
+                            {% for image in project.images %}
+                                <img src="{{ asset(image) }}" alt="{{ project.name }} screenshot" loading="lazy">
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <p><strong>Problem:</strong> {{ project.problem }}</p>
+                    <p><strong>What was built:</strong> {{ project.built }}</p>
+                    <p><strong>Tech used:</strong> {{ project.tech }}</p>
+                    <a class="button" href="{{ project.url }}">View project</a>
+                </article>
+            {% endfor %}
+        </div>
+        <div id="lightbox-root"></div>
+    </section>
+{% endblock %}

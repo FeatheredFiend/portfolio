@@ -1,0 +1,13 @@
+<footer class="site-footer">
+    <div class="site-footer__social">
+        <a href="{{ content.socialLinks.linkedin }}">LinkedIn</a>
+        <a href="{{ content.socialLinks.facebook }}">Facebook</a>
+        <a href="{{ content.socialLinks.github }}">GitHub</a>
+    </div>
+    <div class="site-footer__projects">
+        {% for project in content.projects %}
+            <a href="{{ project.url }}">{{ project.name }}</a>
+        {% endfor %}
+    </div>
+    <p class="site-footer__copyright">&copy; {{ "now"|date("Y") }} {{ content.hero.name }}</p>
+</footer>

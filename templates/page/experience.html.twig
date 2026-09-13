@@ -1,0 +1,20 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Experience — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}Ten years full-stack, PHP/Symfony/Laravel-focused, with MySQL and React/Angular front ends.{% endblock %}
+
+{% block body %}
+    <section class="experience">
+        <h1>Experience</h1>
+        <p class="experience__framing">Ten years full-stack, PHP/Symfony/Laravel-focused, with MySQL and React/Angular front ends.</p>
+        <ol class="experience__timeline">
+            {% for job in experience %}
+                <li>
+                    <span class="experience__years">{{ job.years }}</span>
+                    <strong>{{ job.role }}</strong>
+                    <p>{{ job.impact }}</p>
+                </li>
+            {% endfor %}
+        </ol>
+    </section>
+{% endblock %}

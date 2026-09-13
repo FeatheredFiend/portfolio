@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Services — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}Symfony/Laravel upgrades, custom full-stack tools, API performance work, and legacy codebase audits.{% endblock %}
+
+{% block body %}
+    <section class="services">
+        <h1>Services</h1>
+        <div class="services__grid">
+            {% for service in services %}
+                <article class="service-card">
+                    <h2>{{ service.problem }}</h2>
+                    <p>{{ service.body }}</p>
+                    <p class="service-card__outcome">{{ service.outcome }}</p>
+                </article>
+            {% endfor %}
+        </div>
+        <a class="button button--primary" href="{{ path('app_contact') }}">Let's talk</a>
+    </section>
+
+    <section class="how-i-work">
+        <h2>How I Work</h2>
+        <ol>
+            {% for step in howIWork %}
+                <li><strong>{{ step.step }}</strong> — {{ step.body }}</li>
+            {% endfor %}
+        </ol>
+    </section>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Contact — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}Have a project or a problem? Let's talk.{% endblock %}
+
+{% block body %}
+    <section class="contact">
+        <h1>Have a project or a problem? Let's talk.</h1>
+
+        <div id="contact-form-root" data-endpoint="{{ path('api_contact_submit') }}">
+            <noscript>
+                <p>Enable JavaScript to use the contact form, or email directly below.</p>
+            </noscript>
+        </div>
+
+        <div class="contact__direct-links">
+            <a href="mailto:{{ content.socialLinks.email }}">Email</a>
+            <a href="{{ content.socialLinks.linkedin }}">LinkedIn</a>
+            <a href="{{ content.socialLinks.github }}">GitHub</a>
+            <a href="{{ content.socialLinks.facebook }}">Facebook</a>
+        </div>
+    </section>
+{% endblock %}
