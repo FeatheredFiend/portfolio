@@ -164,19 +164,29 @@ jobs:
       # its compiled container to src/var/cache/prod instead of the real
       # var/cache/prod. FTP-Deploy-Action only uploads files that changed in
       # the current run - it has no idea src/var/cache exists on the server
-      # and never deletes it, so that stray container sat there permanently.
-      # Once project-dir detection was fixed, the correct container (same
-      # class name, since it's a hash of the container's own config) loaded
-      # from var/cache/prod, but the leftover stray copy under src/var/cache
-      # also got pulled in and caused a "Cannot redeclare class
-      # App_KernelProdContainer" fatal. Wiping both locations here,
-      # unconditionally, before every deploy guarantees the container
-      # actually uploaded this run is the only one the server can load - and
-      # is a no-op once src/var/cache/prod no longer accumulates. Uses lftp
-      # directly (rather than FTP-Deploy-Action, which only uploads/removes
-      # files it's tracking, not arbitrary stray remote paths) with
-      # cmd:fail-exit off so a first-ever deploy (nothing to delete yet)
-      # doesn't fail the job.
+      # and never deletes it, so that stray container sat there permanently,
+      # and once project-dir detection was fixed the correct container
+      # (same class name, since it's a hash of the container's own config)
+      # loaded from var/cache/prod while the stray copy also got pulled in,
+      # causing a "Cannot redeclare class App_KernelProdContainer" fatal.
+      #
+      # This ONLY removes src/var - a path FTP-Deploy-Action has never heard
+      # of and never will, since nothing in the local build tree lives
+      # there, so deleting it out-of-band can't desync its state tracking.
+      # Deliberately NOT touching var/cache/prod itself here even though
+      # it's the same class of problem (stale container-hash directories
+      # from old configs can pile up there too): FTP-Deploy-Action's whole
+      # incremental-upload optimization (see "Restore FTP sync state" above)
+      # depends on trusting its cached state file about what already exists
+      # remotely under paths it manages. Deleting var/cache/prod out-of-band
+      # broke that assumption - the next upload needed to create a new
+      # container-hash subdirectory there but skipped re-creating the parent
+      # (it "already existed" per the state cache), so FTP-Deploy-Action's
+      # CWD into the new path 550'd with "No such file or directory". Use
+      # `dangerous-clean-slate` on FTP-Deploy-Action itself, not lftp, if
+      # old container-hash directories under var/cache/prod ever need
+      # cleaning up. cmd:fail-exit off below so a first-ever deploy (nothing
+      # to delete yet) doesn't fail the job.
       - name: Remove stale remote cache before upload
         run: |
           sudo apt-get -qq update && sudo apt-get -qq install -y lftp
@@ -185,7 +195,6 @@ jobs:
             set ftp:ssl-force true;
             set cmd:fail-exit no;
             open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} ftps://${{ secrets.FTP_SERVER }}:21;
-            rm -rf var/cache/prod;
             rm -rf src/var;
             exit;
           "
