@@ -172,24 +172,34 @@ jobs:
           restore-keys: |
             ftp-deploy-sync-state-v2-
 
-      # var/cache/prod is deliberately handled by lftp below, not
-      # FTP-Deploy-Action, and excluded from its own upload set (see the
-      # exclude list on "Deploy over FTP"). Three deploys in a row 550'd
-      # with "Can't change directory ... No such file or directory" whenever
-      # FTP-Deploy-Action needed to replace a container-hash directory under
-      # var/cache/prod (its compiled contents differ slightly build-to-build
-      # even with identical config) - it removes the old folder but doesn't
-      # re-create it before immediately trying to CWD into it for the new
-      # upload, and that reproduced identically whether the folder was being
-      # freshly deleted by us first or left for FTP-Deploy-Action's own
-      # diffing to discover, and whether its cache-state file was fresh or
-      # stale. That's a real bug in FTP-Deploy-Action@v4.3.5's
-      # remove-then-recreate ordering for this exact pattern, not something
-      # tunable from this side of it. `lftp mirror --reverse --delete` does
-      # the same "make remote match local exactly" job as a mature,
-      # dedicated sync tool (proven reliable against this server by the
-      # src/var cleanup below across all of those attempts) and doesn't
-      # share that bug.
+      # lftp here does directory bookkeeping ONLY (MKD/RMD/DELE - control
+      # channel commands, no data connection) and leaves actual file
+      # transfer to FTP-Deploy-Action below, which has uploaded every real
+      # file in every one of these deploys without issue. Two separate lftp
+      # approaches to uploading var/cache/prod's file *contents* directly
+      # (mirror, with and without parallel transfers, with TLS forced to
+      # 1.2) all hit "gnutls_handshake: An unexpected TLS packet was
+      # received" - a GnuTLS/FTPS data-channel incompatibility (Ubuntu's
+      # lftp is linked against GnuTLS; FTP-Deploy-Action's Node/OpenSSL TLS
+      # stack doesn't share it) that turned out to be about the data
+      # connection itself, not tunable away. Every lftp `rm` in this step,
+      # by contrast, is control-channel-only and has been reliable
+      # throughout every attempt - hence keeping lftp confined to that.
+      #
+      # Separately, three deploys in a row 550'd with "Can't change
+      # directory ... No such file or directory" whenever FTP-Deploy-Action
+      # itself needed to create or replace a directory under var/cache/prod
+      # (not just the container-hash folder - Twig and the filesystem cache
+      # pools shard themselves into many small hashed subdirectories too):
+      # it doesn't create/recreate a directory before immediately trying to
+      # CWD into it, a real bug in its handling of that exact pattern.
+      # Wiping var/cache/prod and pre-creating every directory the current
+      # build actually needs (enumerated from the local filesystem after
+      # cache warmup - potentially 100+ small dirs, but MKD is a cheap
+      # control-channel round trip) before FTP-Deploy-Action runs means it
+      # only ever has to CWD into directories that already exist and upload
+      # plain new files into them - the ordinary, always-successful path -
+      # never replace or freshly create one itself.
       #
       # src/var is a separate, one-off relic: an earlier deploy (before
       # composer.json was included - see the "Restructure" step comment
@@ -206,31 +216,25 @@ jobs:
       # the current leaked copy here; the exclude list now stops it
       # recurring.
       #
-      # cmd:fail-exit off so a first-ever deploy (nothing to delete/mirror
-      # yet on a brand new server) doesn't fail the job. ssl:priority below
-      # forces TLS 1.2: dropping parallel transfers didn't stop
-      # "gnutls_handshake: An unexpected TLS packet was received" - it
-      # recurred on a single sequential transfer too. Ubuntu's lftp is
-      # linked against GnuTLS, and this exact error against FTPS servers is
-      # a well-documented GnuTLS/TLS-1.3 session-resumption incompatibility
-      # on the data channel (separate handshake per file, reusing the
-      # control channel's session) - not something specific to this server,
-      # since FTP-Deploy-Action's Node/OpenSSL-based TLS stack doesn't share
-      # the bug. Forcing the data channel down to TLS 1.2 sidesteps the
-      # incompatibility while keeping it fully encrypted, unlike disabling
-      # ftp:ssl-protect-data outright.
-      - name: Sync var/cache/prod and remove stale remote cache
+      # cmd:fail-exit off so a first-ever deploy (nothing to delete yet on a
+      # brand new server) doesn't fail the job.
+      - name: Prepare remote cache directories and remove stale remote cache
         run: |
           sudo apt-get -qq update && sudo apt-get -qq install -y lftp
+          MKDIR_CMDS=""
+          while IFS= read -r dir; do
+            MKDIR_CMDS="$MKDIR_CMDS mkdir -p \"$dir\";"
+          done < <(find var/cache/prod -mindepth 1 -type d)
           lftp -e "
             set ssl:verify-certificate no;
-            set ssl:priority NORMAL:-VERS-TLS1.3;
             set ftp:ssl-force true;
             set cmd:fail-exit no;
             open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} ftps://${{ secrets.FTP_SERVER }}:21;
             rm -rf src/var;
             rm -f .ftp-deploy-sync-state.json;
-            mirror --reverse --delete --verbose var/cache/prod var/cache/prod;
+            rm -rf var/cache/prod;
+            mkdir -p var/cache/prod;
+            $MKDIR_CMDS
             exit;
           "
 
@@ -265,7 +269,6 @@ jobs:
             **/tests/**
             **/var/log/**
             **/var/share/**
-            **/var/cache/**
             .ftp-deploy-sync-state.json
             **/.github/**
             **/compose*.yaml
