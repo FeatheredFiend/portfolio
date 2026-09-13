@@ -264,8 +264,14 @@ main {
     margin: 1rem 0;
 }
 
+.project-card__images picture {
+    display: block;
+}
+
 .project-card__images img {
+    display: block;
     width: 100%;
+    height: auto;
     border-radius: 0.4rem;
     border: 1px solid var(--color-border);
     cursor: zoom-in;

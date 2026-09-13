@@ -75,7 +75,6 @@ Build Order steps 5–6. Installed `pentatrion/vite-bundle` via `composer requir
 ### Known gaps / next session
 - No `npm run dev` / HMR workflow verified yet — rebuild with `npm run build` after any change to `assets/`.
 - `content/copy.md`'s bracketed placeholders (name, employment history, real social/subdomain URLs, contact email) are still open — see Open Items below.
-- SEO pass beyond what's already done (step 8) and cross-browser testing (step 9) not yet done.
 
 ## Responsive Pass — DONE (2026-09-13)
 Build Order step 7. Verified with real Playwright screenshots at iPhone 12 width (390px), a mid-size 700px width, and checked `scrollWidth` vs `clientWidth` on all six pages (zero horizontal overflow anywhere) rather than guessing from the CSS alone.
@@ -84,6 +83,19 @@ Build Order step 7. Verified with real Playwright screenshots at iPhone 12 width
 - **Hero**: below 48rem, the two-column asymmetric layout (main text + tech-stack panel) collapses to one column and hides the panel (already built during the backend pass, confirmed still correct here).
 - **Grids** (services, tech stack, projects, image galleries): already responsive via `repeat(auto-fit, minmax(...))`, no changes needed — collapse to single column naturally as the viewport narrows.
 - **Forms**: contact form fields are block-level/full-width already, no fixed widths to break.
+
+## SEO Pass — DONE (2026-09-13)
+Build Order step 8. Most of the checklist was already satisfied during the backend build (meta/OG/Twitter/JSON-LD/sitemap/robots — see Backend & Templates above); this pass covered the remaining items:
+
+- **Semantic HTML / heading hierarchy**: audited — every page has exactly one `<h1>`, `<h2>`s nest correctly under it, nothing skips a level.
+- **Image optimization**: the case-study screenshots were served at their original capture resolution (up to 1280×1003) despite displaying at a few hundred px in the grid — 760KB total across 7 images. Resized to a 640px max-width (2x a typical display slot, covers retina) and re-encoded; PNG fallback dropped to ~106KB total, plus WebP versions at ~68KB total served via `<picture>`/`<source type="image/webp">`. `PortfolioContent::getProjects()` now carries real `width`/`height` per image (not just a path) so the `<img>` tags can declare accurate intrinsic dimensions — needed to actually prevent layout shift, since `width` alone does nothing once CSS forces `width: 100%`; browsers derive the right aspect ratio from the width/height *attributes* automatically as long as CSS doesn't also set an explicit `height`.
+- **Alt text**: already present on every image (per-image label derived from filename, e.g. "Miniature Collection Tracker — Army List screenshot"), confirmed nothing site-wide is missing it.
+- **Lazy-loading**: below-fold project screenshots already had `loading="lazy"` from the backend pass.
+- **JS bundle size**: previously a single shared Vite entry (`app`) loaded React + both islands' code on *every* page, even pages with no interactive element (home/services/tech-stack/experience). Split into three entries — `app` (CSS only, ~0KB JS), `contact`, and `gallery` — each page now loads only what it actually uses via a `javascripts` block override per template. Verified via the built manifest and `curl`: home/services/tech-stack/experience ship zero React; only `/contact` loads the contact bundle and only `/projects` loads the gallery bundle.
+- Not done: submitting to Google Search Console (post-launch only, no live domain yet).
+
+## Cross-Browser Testing — DONE (2026-09-13)
+Build Order step 9. Ran the full functional suite (all 6 pages load, contact form fills+submits+shows success, gallery lightbox opens/closes, mobile nav toggle opens) through real Playwright-driven Chromium, Firefox, and WebKit — not just Chromium as in earlier passes. Zero console/page errors on any engine. Also screenshotted the homepage in Firefox and WebKit for visual comparison — pixel-identical to Chromium at 1280px width, no engine-specific layout or font-rendering issues.
 
 ## Where React Is Used (islands only)
 - Contact form (client-side validation + async submit to a Symfony API endpoint)
@@ -135,8 +147,8 @@ Pick one distinctive design element (asymmetric hero layout, a signature accent 
 5. React components via Vite: contact form, portfolio gallery/lightbox — DONE (2026-09-13), see React Islands section below
 6. Integrate React into Twig templates (mount points per page) — DONE (2026-09-13), folded into step 5
 7. Responsive pass (mobile-first, real breakpoints) — DONE (2026-09-13), see Responsive Pass section above
-8. SEO pass (see checklist above)
-9. Cross-browser/device testing
+8. SEO pass (see checklist above) — DONE (2026-09-13), see SEO Pass section above
+9. Cross-browser/device testing — DONE (2026-09-13), see Cross-Browser Testing section above
 
 ## Deployment Workflow (no SSH, file manager only)
 This is the production release process, separate from the Docker Compose stack used for local dev (see above).

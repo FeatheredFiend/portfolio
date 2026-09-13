@@ -10,7 +10,9 @@ export default defineConfig({
     build: {
         rollupOptions: {
             input: {
-                app: "./assets/app.jsx"
+                app: "./assets/app.js",
+                contact: "./assets/islands/contact.jsx",
+                gallery: "./assets/islands/gallery.jsx"
             },
         }
     },

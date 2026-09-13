@@ -3,6 +3,11 @@
 {% block title %}Projects — {{ content.hero.name }}{% endblock %}
 {% block meta_description %}Live projects and case studies: a miniature collection tracker and a choose-your-own-adventure builder.{% endblock %}
 
+{% block javascripts %}
+    {{ parent() }}
+    {{ vite_entry_script_tags('gallery') }}
+{% endblock %}
+
 {% block body %}
     <section class="projects">
         <h1>Projects</h1>
@@ -13,7 +18,17 @@
                     {% if project.images|length %}
                         <div class="project-card__images">
                             {% for image in project.images %}
-                                <img src="{{ asset(image) }}" alt="{{ project.name }} screenshot" loading="lazy">
+                                {% set label = image.path|split('/')|last|replace({'.png': '', '-': ' '})|title %}
+                                <picture>
+                                    <source srcset="{{ asset(image.path|replace({'.png': '.webp'})) }}" type="image/webp">
+                                    <img
+                                        src="{{ asset(image.path) }}"
+                                        alt="{{ project.name }} — {{ label }} screenshot"
+                                        loading="lazy"
+                                        width="{{ image.width }}"
+                                        height="{{ image.height }}"
+                                    >
+                                </picture>
                             {% endfor %}
                         </div>
                     {% endif %}

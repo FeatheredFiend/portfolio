@@ -3,6 +3,11 @@
 {% block title %}Contact — {{ content.hero.name }}{% endblock %}
 {% block meta_description %}Have a project or a problem? Let's talk.{% endblock %}
 
+{% block javascripts %}
+    {{ parent() }}
+    {{ vite_entry_script_tags('contact') }}
+{% endblock %}
+
 {% block body %}
     <section class="contact">
         <h1>Have a project or a problem? Let's talk.</h1>

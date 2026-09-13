@@ -75,9 +75,9 @@ class PortfolioContent
                 'tech' => 'Symfony (API/backend), React + Vite (frontend), MySQL, deployed via GitHub Actions CI/CD.',
                 'url' => '#',
                 'images' => [
-                    'images/portfolio/warhammer/army-list.png',
-                    'images/portfolio/warhammer/army-detail.png',
-                    'images/portfolio/warhammer/unit-detail.png',
+                    ['path' => 'images/portfolio/warhammer/army-list.png', 'width' => 640, 'height' => 164],
+                    ['path' => 'images/portfolio/warhammer/army-detail.png', 'width' => 640, 'height' => 398],
+                    ['path' => 'images/portfolio/warhammer/unit-detail.png', 'width' => 640, 'height' => 314],
                 ],
             ],
             [
@@ -88,10 +88,10 @@ class PortfolioContent
                 'tech' => 'Symfony, Twig, MySQL/MariaDB. Actively maintained — recently upgraded across three major Symfony versions (6→8) and to PHP 8.4.',
                 'url' => '#',
                 'images' => [
-                    'images/portfolio/cyoa/homepage.png',
-                    'images/portfolio/cyoa/gamebooks.png',
-                    'images/portfolio/cyoa/play-story.png',
-                    'images/portfolio/cyoa/play-combat.png',
+                    ['path' => 'images/portfolio/cyoa/homepage.png', 'width' => 640, 'height' => 283],
+                    ['path' => 'images/portfolio/cyoa/gamebooks.png', 'width' => 640, 'height' => 67],
+                    ['path' => 'images/portfolio/cyoa/play-story.png', 'width' => 640, 'height' => 271],
+                    ['path' => 'images/portfolio/cyoa/play-combat.png', 'width' => 640, 'height' => 502],
                 ],
             ],
         ];
