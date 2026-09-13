@@ -172,44 +172,54 @@ jobs:
           restore-keys: |
             ftp-deploy-sync-state-v2-
 
-      # A deploy that ran before composer.json was included (see the
-      # "Restructure" step comment above) left Kernel::getProjectDir()
-      # falling back to src/ as the project root, which made Symfony write
-      # its compiled container to src/var/cache/prod instead of the real
-      # var/cache/prod. FTP-Deploy-Action only uploads files that changed in
-      # the current run - it has no idea src/var/cache exists on the server
-      # and never deletes it, so that stray container sat there permanently,
-      # and once project-dir detection was fixed the correct container
-      # (same class name, since it's a hash of the container's own config)
-      # loaded from var/cache/prod while the stray copy also got pulled in,
-      # causing a "Cannot redeclare class App_KernelProdContainer" fatal.
+      # var/cache/prod is deliberately handled by lftp below, not
+      # FTP-Deploy-Action, and excluded from its own upload set (see the
+      # exclude list on "Deploy over FTP"). Three deploys in a row 550'd
+      # with "Can't change directory ... No such file or directory" whenever
+      # FTP-Deploy-Action needed to replace a container-hash directory under
+      # var/cache/prod (its compiled contents differ slightly build-to-build
+      # even with identical config) - it removes the old folder but doesn't
+      # re-create it before immediately trying to CWD into it for the new
+      # upload, and that reproduced identically whether the folder was being
+      # freshly deleted by us first or left for FTP-Deploy-Action's own
+      # diffing to discover, and whether its cache-state file was fresh or
+      # stale. That's a real bug in FTP-Deploy-Action@v4.3.5's
+      # remove-then-recreate ordering for this exact pattern, not something
+      # tunable from this side of it. `lftp mirror --reverse --delete` does
+      # the same "make remote match local exactly" job as a mature,
+      # dedicated sync tool (proven reliable against this server by the
+      # src/var cleanup below across all of those attempts) and doesn't
+      # share that bug.
       #
-      # This ONLY removes src/var - a path FTP-Deploy-Action has never heard
-      # of and never will, since nothing in the local build tree lives
-      # there, so deleting it out-of-band can't desync its state tracking.
-      # Deliberately NOT touching var/cache/prod itself here even though
-      # it's the same class of problem (stale container-hash directories
-      # from old configs can pile up there too): FTP-Deploy-Action's whole
-      # incremental-upload optimization (see "Restore FTP sync state" above)
-      # depends on trusting its cached state file about what already exists
-      # remotely under paths it manages. Deleting var/cache/prod out-of-band
-      # broke that assumption - the next upload needed to create a new
-      # container-hash subdirectory there but skipped re-creating the parent
-      # (it "already existed" per the state cache), so FTP-Deploy-Action's
-      # CWD into the new path 550'd with "No such file or directory". Use
-      # `dangerous-clean-slate` on FTP-Deploy-Action itself, not lftp, if
-      # old container-hash directories under var/cache/prod ever need
-      # cleaning up. cmd:fail-exit off below so a first-ever deploy (nothing
-      # to delete yet) doesn't fail the job.
-      - name: Remove stale remote cache before upload
+      # src/var is a separate, one-off relic: an earlier deploy (before
+      # composer.json was included - see the "Restructure" step comment
+      # above) left Kernel::getProjectDir() falling back to src/ as the
+      # project root, so Symfony wrote a compiled container to
+      # src/var/cache/prod instead of the real var/cache/prod. Nothing in
+      # the local build tree lives at src/var, so FTP-Deploy-Action has no
+      # way to know that stray copy exists and never removes it - hence
+      # deleting it out-of-band here too.
+      #
+      # .ftp-deploy-sync-state.json was also found to have been uploaded to
+      # the live server on past deploys (it was never in the exclude list
+      # below), leaking CI bookkeeping onto the public filesystem. Deleting
+      # the current leaked copy here; the exclude list now stops it
+      # recurring.
+      #
+      # cmd:fail-exit off so a first-ever deploy (nothing to delete/mirror
+      # yet on a brand new server) doesn't fail the job.
+      - name: Sync var/cache/prod and remove stale remote cache
         run: |
           sudo apt-get -qq update && sudo apt-get -qq install -y lftp
           lftp -e "
             set ssl:verify-certificate no;
             set ftp:ssl-force true;
             set cmd:fail-exit no;
+            set mirror:parallel-transfer-count 3;
             open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} ftps://${{ secrets.FTP_SERVER }}:21;
             rm -rf src/var;
+            rm -f .ftp-deploy-sync-state.json;
+            mirror --reverse --delete --verbose var/cache/prod var/cache/prod;
             exit;
           "
 
@@ -244,6 +254,8 @@ jobs:
             **/tests/**
             **/var/log/**
             **/var/share/**
+            **/var/cache/**
+            .ftp-deploy-sync-state.json
             **/.github/**
             **/compose*.yaml
             **/nginx.conf
