@@ -319,13 +319,26 @@ Add these as **repository secrets** on `FeatheredFiend/portfolio` (Settings → 
   deploys after the next one only transfer real diffs; also bumped `timeout` to 120s and `log-level`
   to `verbose` for better signal if it happens again. The very next run still does a full resync
   (no cached state exists yet to restore), same as before.
-- **`Create/reset production admin user` → `getaddrinfo for HOST failed: Temporary failure in name
-  resolution`**: the `PROD_DATABASE_URL` secret was set to the literal example text from this doc
-  (`mysql://USER:PASS@HOST:3306/...`) rather than the real Hostinger DB host — "HOST" isn't a
-  placeholder Doctrine understands, it tried to resolve it as a literal hostname. Not a bug in any
-  workflow file — fix is to edit the `PROD_DATABASE_URL` GitHub secret with the real host from
-  hPanel → Databases (very likely `localhost` for same-server shared hosting, but confirm there
-  rather than assuming) alongside the real user/password/`propriet_portfolio` db name.
+- **`Create/reset production admin user` workflow abandoned** — first attempt hit `getaddrinfo for
+  HOST failed` (the `PROD_DATABASE_URL` secret still had the literal placeholder text from this
+  doc). After fixing that, it hit `SQLSTATE[HY000] [2002] No such file or directory` instead: the DB
+  host was `localhost`, which makes MySQL's client library open a *local Unix socket* rather than a
+  network connection — correct for PHP running on Hostinger's own server, but meaningless from a
+  GitHub Actions runner (a different machine entirely, no such socket exists there). Fixing this
+  properly would need Hostinger's Remote MySQL access enabled for `propriet_portfolio` (likely
+  requiring `%`/any-host, since GitHub-hosted runner IPs aren't fixed) plus the real external
+  hostname — not pursued, since a phpMyAdmin one-off is simpler and needs neither. **Actual working
+  approach**: `docker compose exec php php bin/console security:hash-password` locally (hidden
+  prompt, password never leaves your machine) to get a hash, then run in phpMyAdmin against
+  `propriet_portfolio`:
+  ```sql
+  INSERT INTO app_user (email, roles, password)
+  VALUES ('you@example.com', JSON_ARRAY('ROLE_ADMIN'), 'PASTE_HASH_HERE')
+  ON DUPLICATE KEY UPDATE roles = JSON_ARRAY('ROLE_ADMIN'), password = 'PASTE_HASH_HERE';
+  ```
+  `ON DUPLICATE KEY UPDATE` (keyed on `email`'s unique index) makes this safe to re-run to reset the
+  password later. `.github/workflows/create-admin.yml` is left in the repo in case Remote MySQL
+  access gets enabled later, but isn't the working path today.
 
 ### Every deploy after that
 1. Push/merge the changes you want live to `main`.
