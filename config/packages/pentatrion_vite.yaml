@@ -1,0 +1,10 @@
+when@prod:
+    pentatrion_vite:
+        # The production deploy flattens public/'s contents up to the deploy
+        # root (see the "Restructure for fixed public_html document root"
+        # step in .github/workflows/deploy.yml - the host's primary domain
+        # has a document root fixed to public_html with no way to point it
+        # at public/ instead), so build/ lives directly under the project
+        # dir there, not under public/. Dev/test keep the bundle's default
+        # ("public") since local Docker still uses the normal public/ layout.
+        public_directory: ''
