@@ -171,6 +171,60 @@ deleted from the dev database afterward — they were never meant to be real con
 - The 4 existing hardcoded arrays in `PortfolioContent` (services, tech stack, projects, hero) were
   deliberately left as-is — no stated need to edit those without a redeploy yet.
 
+## Deployment Prep — DONE (2026-09-13)
+A dry run of the actual Hostinger deployment process (Build Order step is done, real domain not
+live yet), done in an isolated copy so it couldn't disturb the working dev environment/vendor.
+
+- **Gap found and fixed**: unlike `warhammer`/`cyoa`, this repo had no `symfony/apache-pack`
+  installed, so there was no `public/.htaccess`. Hostinger's file-manager hosting is Apache-based
+  (confirmed by the sibling projects both needing it) — without it, only `/` would have worked
+  after upload; every other route (`/services`, `/contact`, `/admin`, etc.) would 404, since nothing
+  server-side rewrites requests to `index.php` the way the local `nginx.conf` does. Installed via
+  `composer require symfony/apache-pack` (Flex recipe, not hand-written) — generated
+  `public/.htaccess` matching the sibling projects' setup. Confirmed `bin/phpunit` still green
+  (14 tests) and `git diff` on `bin/console`/`bin/phpunit` was only a file-mode change (0644→0755
+  from the recipe's own script), nothing content-wise.
+- **Dry run method**: copied the whole app into the `php` container's own filesystem (`/tmp/deploy-dryrun`,
+  *not* the bind-mounted volume, so nothing written there ever touches the host repo or the working
+  dev `vendor/`), then ran the exact production sequence from the Deployment Workflow section below
+  against that copy.
+- **Gotcha caught**: running `composer install --no-dev --optimize-autoloader` *before* a
+  `.env.local` with `APP_ENV=prod` exists breaks the install itself — Composer's own post-install
+  `cache:clear` script runs against whatever `APP_ENV` is currently active (defaults to `dev` from
+  the committed `.env`), and by then `--no-dev` has already removed dev-only packages like
+  `symfony/debug-bundle`, so cache warmup crashes with `Class "Symfony\Bundle\DebugBundle\DebugBundle"
+  not found`. **Fix / real-deploy ordering that matters**: create `.env.local` with `APP_ENV=prod`
+  set *first*, then run `composer install --no-dev`.
+- **Verified clean** once ordered correctly: `composer install --no-dev --optimize-autoloader`,
+  `cache:warmup --env=prod`, and `lint:container --env=prod` all passed with no errors. Served the
+  warmed build with PHP's built-in server (`APP_ENV=prod APP_DEBUG=0`) and curled real routes: `/`
+  → 200, `/experience` → 200 and correctly rendered your real saved job entry from the database,
+  `/admin` → 302 redirect to `/login` (access control still enforced under prod). No manifest/Vite
+  asset errors — the existing `public/build/` output from `npm run build` is prod-ready as-is.
+
+### What's still needed from you before the real upload (can't be done for you — needs your
+### Hostinger account/credentials, not something I have access to)
+A production `.env.local` (git-ignored, uploaded alongside the app, never committed) needs real
+values for:
+- `APP_ENV=prod`
+- `APP_SECRET` — generate a fresh one for production, don't reuse the dev value committed in
+  `compose.yaml` (`php bin/console secrets:generate-keys` or simply a new random 32-hex string —
+  it just needs to be unique and secret, not derived from anything).
+- `DATABASE_URL` — the real MySQL credentials Hostinger gives you for this subdomain's database
+  (host/user/pass/dbname from their control panel — different from the local `symfony`/`symfony`
+  dev creds).
+- `MAILER_DSN` — real SMTP credentials so the contact form can actually send mail in production
+  (Hostinger's own SMTP, or an external one like SendGrid/Mailgun/Gmail SMTP — `null://null`/Mailpit
+  were dev-only stand-ins).
+- `CONTACT_EMAIL` is already real (`martynwoollardwebdev@gmail.com`) and doesn't need changing.
+
+Then follow the Deployment Workflow steps below as written (they're the exact sequence just
+verified in the dry run) — the one addition is **run `doctrine:migrations:migrate --env=prod`
+after first upload** to create the `app_user`/`employment_entry`/`education_entry`/`education_course`
+tables on the real production database (they don't exist there yet), then run
+`app:create-admin-user` once against production the same way you did locally, to get a real admin
+login on the live site.
+
 ## Where React Is Used (islands only)
 - Contact form (client-side validation + async submit to a Symfony API endpoint)
 - Portfolio gallery (filtering, lightbox for project screenshots)
@@ -226,15 +280,17 @@ Pick one distinctive design element (asymmetric hero layout, a signature accent 
 9. Cross-browser/device testing — DONE (2026-09-13), see Cross-Browser Testing section above
 
 ## Deployment Workflow (no SSH, file manager only)
-This is the production release process, separate from the Docker Compose stack used for local dev (see above).
+This is the production release process, separate from the Docker Compose stack used for local dev (see above). Dry-run verified 2026-09-13, see Deployment Prep section above for what that caught.
 1. Develop locally inside the Docker Compose stack (`docker compose up`, `npm run dev` for Vite HMR against the containerized backend)
-2. When ready: `composer install --no-dev --optimize-autoloader`
-3. `npm run build`
-4. Set production `.env.local` (DB creds if any, `MAILER_DSN`, `APP_ENV=prod`)
+2. Set production `.env.local` FIRST (`APP_ENV=prod`, fresh `APP_SECRET`, real `DATABASE_URL`, real `MAILER_DSN`) — must exist before step 3, or composer's own post-install cache:clear script crashes (see Deployment Prep gotcha above).
+3. `composer install --no-dev --optimize-autoloader`
+4. `npm run build`
 5. Warm cache locally: `php bin/console cache:warmup --env=prod`
-6. Upload full project via file manager (`vendor/`, `public/build/`, `config/`, `src/`, etc.)
+6. Upload full project via file manager (`vendor/`, `public/build/`, `config/`, `src/`, `.env.local`, etc.)
 7. Point the subdomain's document root at `/public`
-8. Symfony's default `.htaccess` in `public/` handles routing through `index.php` — no extra rewrite rules needed (no client-side router to account for)
+8. `symfony/apache-pack`'s `.htaccess` in `public/` handles routing through `index.php` — no extra rewrite rules needed (no client-side router to account for)
+9. Run `php bin/console doctrine:migrations:migrate --env=prod` once, against the real production database, to create the `app_user`/`employment_entry`/`education_entry`/`education_course` tables (they don't exist there yet)
+10. Run `php bin/console app:create-admin-user <email> --env=prod` once, the same way as locally, to get a real admin login on the live site
 
 ## Open Items (fill in before/during build)
 - Confirm exact PHP version + any module availability on the hosting plan (already confirmed: 8.4)
