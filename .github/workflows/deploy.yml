@@ -81,13 +81,24 @@ jobs:
       # Fix: move public/'s contents up so index.php lands directly at the
       # deploy root (matching public_html), and lock down every other
       # top-level thing PHP still needs on disk (vendor/, src/, config/,
-      # templates/, translations/, var/, .env.local) with a deny-all
-      # .htaccess/<Files> block. PHP's own require()/include() reads files
-      # directly off disk and never goes through Apache, so this doesn't
-      # break the app - it only blocks the same files from being served as
-      # plain HTTP responses. Only ever touches this CI checkout, never the
-      # repo - local dev keeps using the normal public/ layout via nginx,
-      # which doesn't consult .htaccess at all.
+      # templates/, translations/, var/, .env.local, composer.json) with a
+      # deny-all .htaccess/<FilesMatch> block. PHP's own require()/include()
+      # reads files directly off disk and never goes through Apache, so this
+      # doesn't break the app - it only blocks the same files from being
+      # served as plain HTTP responses. Only ever touches this CI checkout,
+      # never the repo - local dev keeps using the normal public/ layout via
+      # nginx, which doesn't consult .htaccess at all.
+      #
+      # composer.json specifically MUST stay in the deploy despite not being
+      # "needed" in an obvious sense: Kernel::getProjectDir() auto-detects
+      # the project root by walking up from src/Kernel.php looking for a
+      # composer.json file. Without it present anywhere, that walk silently
+      # falls back to returning the src/ directory itself as the project
+      # root, which breaks every path built from %kernel.project_dir% -
+      # templates, var/cache, config, translations all resolve to
+      # nonexistent paths under src/. This produced a blank prod 500 on
+      # every route and took real debugging (a diagnostic script forcing
+      # error display, since APP_DEBUG=0 normally hides it) to track down.
       - name: Restructure for fixed public_html document root
         run: |
           set -e
@@ -107,8 +118,11 @@ jobs:
           done
           cat >> public/.htaccess <<'ENVDENYEOF'
 
-          # Added at deploy time: never serve the real production secrets file.
-          <Files ".env.local">
+          # Added at deploy time: never serve these over HTTP even though
+          # they must stay on disk (.env.local has real secrets;
+          # composer.json is required by Kernel::getProjectDir()'s
+          # auto-detection, see the step comment above).
+          <FilesMatch "^(\.env\.local|composer\.json)$">
               <IfModule mod_authz_core.c>
                   Require all denied
               </IfModule>
@@ -116,7 +130,7 @@ jobs:
                   Order allow,deny
                   Deny from all
               </IfModule>
-          </Files>
+          </FilesMatch>
           ENVDENYEOF
           shopt -s dotglob
           mv public/* .
@@ -174,7 +188,6 @@ jobs:
             assets/**
             **/bin/**
             **/migrations/**
-            **/composer.json
             **/composer.lock
             **/symfony.lock
             **/package.json

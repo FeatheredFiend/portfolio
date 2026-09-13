@@ -366,6 +366,31 @@ trusting it against production.
 before mitigation (DB password, SMTP password, `APP_SECRET`) as a precaution, updating the
 corresponding GitHub secrets and redeploying again afterward.
 
+### Follow-on incident: blank 500 after the restructure (2026-09-13)
+The restructured layout fixed the exposure but broke the app outright — every route returned a
+blank 500 (`APP_DEBUG=0` suppresses Symfony's own error output entirely, so this looked like nothing
+at all rather than a helpful error page). Root cause, found via a one-off diagnostic script uploaded
+directly to production (forced `display_errors` on, walked through `vendor/autoload.php` → `Dotenv`
+→ `Kernel::boot()` manually to see exactly where/why it failed rather than guessing further):
+`Kernel::getProjectDir()` auto-detects the project root by walking up from `src/Kernel.php` looking
+for a `composer.json` file — and `composer.json` had been excluded from the deploy as "not needed at
+runtime" (reasonable assumption, wrong in this one specific case). Without it anywhere in the tree,
+that walk silently falls back to returning `src/` itself as the project root, so every path built
+from `%kernel.project_dir%` (templates, `var/cache`, config, translations) resolved to a nonexistent
+subpath of `src/`.
+
+**Fix**: `composer.json` now stays in the deployed tree (removed from the FTP `exclude` list) and is
+locked down over HTTP via the same `.htaccess` mechanism as `.env.local` (a `<FilesMatch>` covering
+both) — present on disk for `getProjectDir()`'s file-existence check, not servable. Verified by
+directly reproducing the `getProjectDir()` behavior with and without the file present (confirmed:
+without it → `.../src`, with it → the real root), then a full replica of the restructured layout
+serving real 200s. `composer.lock`/`symfony.lock` stay excluded — only `composer.json`'s *presence*
+matters to this mechanism, its contents are never read for this purpose.
+
+**Lesson for future "trim what's not needed at runtime" passes**: a file being unused by application
+code doesn't mean the framework doesn't use it for something structural. Worth actually testing
+"remove and see what breaks" rather than reasoning from first principles about what a file is "for."
+
 ### Every deploy after that
 1. Push/merge the changes you want live to `main`.
 2. If this deploy adds/changes a migration: run the **Generate migration SQL** workflow (Actions tab
