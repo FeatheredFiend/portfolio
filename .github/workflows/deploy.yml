@@ -221,10 +221,22 @@ jobs:
       - name: Prepare remote cache directories and remove stale remote cache
         run: |
           sudo apt-get -qq update && sudo apt-get -qq install -y lftp
+          # Plain `mkdir` (no -p): -p's "only create if missing" check needs
+          # a directory listing, which - like mirror's file transfers -
+          # needs a data connection and hits the same GnuTLS TLS-handshake
+          # bug ("mkdir: Fatal error: gnutls_handshake: An unexpected TLS
+          # packet was received" on every single -p mkdir, even though every
+          # `rm` in this same script - a direct delete with no listing -
+          # keeps working). A bare `mkdir` just issues MKD directly with no
+          # existence check, so it stays control-channel-only like `rm` -
+          # but then every parent must already exist, hence creating
+          # shallowest-first below (sorted by path depth) so each
+          # directory's parent was created by an earlier command in the
+          # same run.
           MKDIR_CMDS=""
           while IFS= read -r dir; do
-            MKDIR_CMDS="$MKDIR_CMDS mkdir -p \"$dir\";"
-          done < <(find var/cache/prod -mindepth 1 -type d)
+            MKDIR_CMDS="$MKDIR_CMDS mkdir \"$dir\";"
+          done < <(find var/cache/prod -mindepth 1 -type d | awk -F/ '{print NF, $0}' | sort -n | cut -d' ' -f2-)
           lftp -e "
             set ssl:verify-certificate no;
             set ftp:ssl-force true;
@@ -233,7 +245,7 @@ jobs:
             rm -rf src/var;
             rm -f .ftp-deploy-sync-state.json;
             rm -rf var/cache/prod;
-            mkdir -p var/cache/prod;
+            mkdir var/cache/prod;
             $MKDIR_CMDS
             exit;
           "
