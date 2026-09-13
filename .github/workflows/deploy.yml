@@ -223,19 +223,31 @@ jobs:
       #
       # cmd:fail-exit off so a first-ever deploy (nothing to delete yet on a
       # brand new server) doesn't fail the job.
+      # timeout 90 below is a hard backstop: a prior run hung indefinitely
+      # on this step (no output past `apt-get install`, still running 20+
+      # minutes later) instead of failing fast like every earlier attempt -
+      # likely lftp retrying a stalled connection with no bound
+      # (net:max-retries defaults to unlimited), rather than a fast TLS
+      # rejection like before. net:timeout/max-retries below bound lftp's
+      # own retry behavior; the outer `timeout` kills the whole process if
+      # it still doesn't return, so a bad connection fails this step in
+      # under two minutes instead of hanging for hours.
       - name: Invalidate remote cache
         run: |
           sudo apt-get -qq update && sudo apt-get -qq install -y lftp
-          lftp -e "
+          timeout 90 lftp -e "
             set ssl:verify-certificate no;
             set ftp:ssl-force true;
             set cmd:fail-exit no;
+            set net:timeout 15;
+            set net:max-retries 2;
+            set net:reconnect-interval-base 5;
             open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} ftps://${{ secrets.FTP_SERVER }}:21;
             rm -rf src/var;
             rm -f .ftp-deploy-sync-state.json;
             rm -f var/cache/prod/App_KernelProdContainer.php;
             exit;
-          "
+          " || echo "Cache invalidation timed out or failed - continuing deploy anyway; a stale cache may need manual clearing on the server."
 
       # .env (committed, non-secret defaults only - real secrets live in
       # .env.local, written above) is deliberately NOT excluded below,
