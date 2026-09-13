@@ -69,6 +69,25 @@ jobs:
           APP_ENV: prod
         run: php bin/console cache:clear --env=prod --no-interaction
 
+      # Every GitHub-hosted run starts from a clean checkout with no memory of
+      # what's already on the server, so without this, FTP-Deploy-Action
+      # treats every file (including all of vendor/, thousands of files) as
+      # new on every single deploy - a full resync over shared-hosting FTP,
+      # which is slow (~20+ min) and was seen dropping mid-transfer with
+      # "Server sent FIN packet unexpectedly". Caching the action's own state
+      # file between runs makes it re-diff against what it last uploaded, so
+      # normal deploys only transfer what actually changed. Keyed by run id
+      # (always a fresh cache miss) with a prefix restore-key so it still
+      # picks up the most recent previous state - the standard "growing
+      # cache" pattern, since actions/cache doesn't support mutating one key.
+      - name: Restore FTP sync state
+        uses: actions/cache@v4
+        with:
+          path: .ftp-deploy-sync-state.json
+          key: ftp-deploy-sync-state-${{ github.run_id }}
+          restore-keys: |
+            ftp-deploy-sync-state-
+
       - name: Deploy over FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -77,6 +96,9 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port: 21
           protocol: ftps
+          timeout: 120000
+          log-level: verbose
+          state-name: .ftp-deploy-sync-state.json
           server-dir: ./
           exclude: |
             **/.git*

@@ -306,6 +306,27 @@ Add these as **repository secrets** on `FeatheredFiend/portfolio` (Settings → 
   admin user** workflow below; safe to leave in place afterwards to reset the password later if
   needed, or delete once you're logged in.
 
+### Troubleshooting hit on first real runs (2026-09-13)
+- **`Deploy to Hostinger` → "Server sent FIN packet unexpectedly, closing connection"**: happened on
+  the FTP step specifically, after all prior steps (composer, env, build, cache warmup) succeeded —
+  and on a *later* run, after an earlier run had already succeeded once (24m16s). Root cause: a
+  GitHub-hosted runner starts from a clean checkout every time with no memory of what it already put
+  on the server, so `FTP-Deploy-Action` was treating every file — thousands of them, most of it
+  `vendor/` — as new on every single run, a full resync each time over shared-hosting FTP. That's
+  slow (~20+ min) and leaves a long window for the shared host to drop the connection mid-transfer.
+  Fixed by caching the action's own `.ftp-deploy-sync-state.json` between runs (`actions/cache`,
+  keyed by run id with a prefix restore-key — the standard "growing cache" pattern), so normal
+  deploys after the next one only transfer real diffs; also bumped `timeout` to 120s and `log-level`
+  to `verbose` for better signal if it happens again. The very next run still does a full resync
+  (no cached state exists yet to restore), same as before.
+- **`Create/reset production admin user` → `getaddrinfo for HOST failed: Temporary failure in name
+  resolution`**: the `PROD_DATABASE_URL` secret was set to the literal example text from this doc
+  (`mysql://USER:PASS@HOST:3306/...`) rather than the real Hostinger DB host — "HOST" isn't a
+  placeholder Doctrine understands, it tried to resolve it as a literal hostname. Not a bug in any
+  workflow file — fix is to edit the `PROD_DATABASE_URL` GitHub secret with the real host from
+  hPanel → Databases (very likely `localhost` for same-server shared hosting, but confirm there
+  rather than assuming) alongside the real user/password/`propriet_portfolio` db name.
+
 ### Every deploy after that
 1. Push/merge the changes you want live to `main`.
 2. If this deploy adds/changes a migration: run the **Generate migration SQL** workflow (Actions tab
