@@ -158,6 +158,38 @@ jobs:
           restore-keys: |
             ftp-deploy-sync-state-
 
+      # A deploy that ran before composer.json was included (see the
+      # "Restructure" step comment above) left Kernel::getProjectDir()
+      # falling back to src/ as the project root, which made Symfony write
+      # its compiled container to src/var/cache/prod instead of the real
+      # var/cache/prod. FTP-Deploy-Action only uploads files that changed in
+      # the current run - it has no idea src/var/cache exists on the server
+      # and never deletes it, so that stray container sat there permanently.
+      # Once project-dir detection was fixed, the correct container (same
+      # class name, since it's a hash of the container's own config) loaded
+      # from var/cache/prod, but the leftover stray copy under src/var/cache
+      # also got pulled in and caused a "Cannot redeclare class
+      # App_KernelProdContainer" fatal. Wiping both locations here,
+      # unconditionally, before every deploy guarantees the container
+      # actually uploaded this run is the only one the server can load - and
+      # is a no-op once src/var/cache/prod no longer accumulates. Uses lftp
+      # directly (rather than FTP-Deploy-Action, which only uploads/removes
+      # files it's tracking, not arbitrary stray remote paths) with
+      # cmd:fail-exit off so a first-ever deploy (nothing to delete yet)
+      # doesn't fail the job.
+      - name: Remove stale remote cache before upload
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y lftp
+          lftp -e "
+            set ssl:verify-certificate no;
+            set ftp:ssl-force true;
+            set cmd:fail-exit no;
+            open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} ftps://${{ secrets.FTP_SERVER }}:21;
+            rm -rf var/cache/prod;
+            rm -rf src/var;
+            exit;
+          "
+
       # .env (committed, non-secret defaults only - real secrets live in
       # .env.local, written above) is deliberately NOT excluded below,
       # despite an earlier version of this workflow excluding it "to be
