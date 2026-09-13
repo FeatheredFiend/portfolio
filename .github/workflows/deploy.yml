@@ -150,13 +150,27 @@ jobs:
       # (always a fresh cache miss) with a prefix restore-key so it still
       # picks up the most recent previous state - the standard "growing
       # cache" pattern, since actions/cache doesn't support mutating one key.
+      # The "-v2-" prefix bump below deliberately orphans every state file
+      # cached under the old "ftp-deploy-sync-state-" prefix. Two deploys in
+      # a row failed mid-upload (see git log around this line) - the "Deploy
+      # over FTP" step failing means its "Post Restore FTP sync state" save
+      # never runs, so the cached state stopped reflecting reality on the
+      # server after the first failure. The next run then diffed against
+      # that stale state, decided a directory FTP-Deploy-Action itself had
+      # never finished creating was now safe to remove, and 550'd trying to
+      # CWD into the folder it had just deleted to confirm the removal.
+      # Bumping the prefix makes this run start from no cached state at all,
+      # so FTP-Deploy-Action falls back to a full comparison-free upload
+      # (slower, ~20+ min per the note below, but can't misfire on a bad
+      # diff) and - assuming it succeeds - saves a fresh, accurate state
+      # that later incremental deploys can trust again.
       - name: Restore FTP sync state
         uses: actions/cache@v4
         with:
           path: .ftp-deploy-sync-state.json
-          key: ftp-deploy-sync-state-${{ github.run_id }}
+          key: ftp-deploy-sync-state-v2-${{ github.run_id }}
           restore-keys: |
-            ftp-deploy-sync-state-
+            ftp-deploy-sync-state-v2-
 
       # A deploy that ran before composer.json was included (see the
       # "Restructure" step comment above) left Kernel::getProjectDir()
