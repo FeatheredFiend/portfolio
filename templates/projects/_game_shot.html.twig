@@ -1,0 +1,19 @@
+{# A game image as <picture>: its .webp twin first, plus its 1280px "-full.webp" when `sizes` is given.
+   data-full lets the lightbox open the large version. #}
+{% set webp = asset(image.path|replace({'.png': '.webp'})) %}
+{% set full = asset(image.path|replace({'.png': '-full.webp'})) %}
+<picture>
+    {% if sizes is defined %}
+        <source type="image/webp" srcset="{{ webp }} 640w, {{ full }} 1280w" sizes="{{ sizes }}">
+    {% else %}
+        <source type="image/webp" srcset="{{ webp }}">
+    {% endif %}
+    <img
+        src="{{ asset(image.path) }}"
+        alt="{{ alt }}"
+        loading="{{ loading|default('lazy') }}"
+        width="{{ image.width }}"
+        height="{{ image.height }}"
+        data-full="{{ full }}"
+    >
+</picture>
