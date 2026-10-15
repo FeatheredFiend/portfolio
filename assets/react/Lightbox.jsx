@@ -10,7 +10,8 @@ export default function Lightbox({ imageSelector }) {
                 return;
             }
 
-            setActive({ src: img.src, alt: img.alt });
+            // data-full points at a larger version where there is one (the game screenshots).
+            setActive({ src: img.dataset.full || img.currentSrc || img.src, alt: img.alt });
         }
 
         document.addEventListener('click', handleClick);
@@ -46,7 +47,10 @@ export default function Lightbox({ imageSelector }) {
             <button className="lightbox__close" type="button" aria-label="Close" onClick={() => setActive(null)}>
                 &times;
             </button>
-            <img className="lightbox__image" src={active.src} alt={active.alt} onClick={(event) => event.stopPropagation()} />
+            <figure className="lightbox__figure" onClick={(event) => event.stopPropagation()}>
+                <img className="lightbox__image" src={active.src} alt={active.alt} />
+                {active.alt && <figcaption className="lightbox__caption">{active.alt}</figcaption>}
+            </figure>
         </div>
     );
 }

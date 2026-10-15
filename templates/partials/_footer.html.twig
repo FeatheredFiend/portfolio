@@ -5,6 +5,9 @@
         <a href="{{ content.socialLinks.github }}">GitHub</a>
     </div>
     <div class="site-footer__projects">
+        {% for game in content.games|filter(game => game.status == 'playable') %}
+            <a href="{{ game.url }}">{{ game.name }}</a>
+        {% endfor %}
         {% for project in content.projects %}
             <a href="{{ project.url }}">{{ project.name }}</a>
         {% endfor %}

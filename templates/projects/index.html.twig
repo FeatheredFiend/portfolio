@@ -1,7 +1,7 @@
 {% extends 'base.html.twig' %}
 
 {% block title %}Projects — {{ content.hero.name }}{% endblock %}
-{% block meta_description %}Live projects and case studies: a miniature collection tracker and a choose-your-own-adventure builder.{% endblock %}
+{% block meta_description %}Playable browser games, a gothic horror JRPG and a grim isometric RTS, plus live web apps: a miniature collection tracker and a choose-your-own-adventure builder.{% endblock %}
 
 {% block javascripts %}
     {{ parent() }}
@@ -11,34 +11,100 @@
 {% block body %}
     <section class="projects">
         <h1>Projects</h1>
-        <div class="projects__grid">
-            {% for project in projects %}
-                <article class="project-card" id="{{ project.slug }}">
-                    <h2>{{ project.name }}</h2>
-                    {% if project.images|length %}
-                        <div class="project-card__images">
-                            {% for image in project.images %}
-                                {% set label = image.path|split('/')|last|replace({'.png': '', '-': ' '})|title %}
-                                <picture>
-                                    <source srcset="{{ asset(image.path|replace({'.png': '.webp'})) }}" type="image/webp">
-                                    <img
-                                        src="{{ asset(image.path) }}"
-                                        alt="{{ project.name }} — {{ label }} screenshot"
-                                        loading="lazy"
-                                        width="{{ image.width }}"
-                                        height="{{ image.height }}"
-                                    >
-                                </picture>
+
+        <section class="games" id="games" aria-labelledby="games-heading">
+            <header class="section-intro">
+                <p class="eyebrow">$ ls ~/games</p>
+                <h2 id="games-heading">Games</h2>
+                <p class="section-intro__lead">Three original games for the browser, each designed, written and shipped by me, from the first greybox to the deploy pipeline. Two are playable right now: no download, no install, just click and play.</p>
+                <p>They're also where I push the habits I bring to client work: game rules in pure, tested TypeScript kept apart from the rendering, content in validated data files instead of code, and CI that ships every green push.</p>
+            </header>
+
+            {% for game in games %}
+                {% set cover = game.images|first %}
+                <article class="game-card game-card--{{ game.slug }}" id="{{ game.slug }}" aria-labelledby="{{ game.slug }}-name">
+                    <figure class="game-card__cover">
+                        {% include 'projects/_game_shot.html.twig' with {
+                            image: cover,
+                            alt: game.name ~ ' — ' ~ cover.caption,
+                            sizes: '(min-width: 72rem) 66rem, calc(100vw - 6rem)',
+                            loading: loop.first ? 'eager' : 'lazy',
+                        } only %}
+                        <figcaption>{{ cover.caption }}</figcaption>
+                    </figure>
+
+                    <div class="game-card__body">
+                        <div class="game-card__pitch">
+                            <p class="game-card__status game-card__status--{{ game.status }}">{{ game.statusLabel }}</p>
+                            <h3 id="{{ game.slug }}-name">{{ game.name }}</h3>
+                            <p class="game-card__genre">{{ game.genre }}</p>
+                            <blockquote class="game-card__hook"><p>{{ game.hook }}</p></blockquote>
+                            {% for paragraph in game.pitch %}
+                                <p>{{ paragraph }}</p>
+                            {% endfor %}
+                            <a class="button{{ game.status == 'playable' ? ' button--game' }}" href="{{ game.url }}">{{ game.cta }}</a>
+                        </div>
+                        <ul class="game-card__features">
+                            {% for feature in game.features %}
+                                <li><strong>{{ feature.title }}</strong> {{ feature.body }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    {% if game.images|length > 1 %}
+                        <div class="game-card__gallery">
+                            {% for image in game.images|slice(1) %}
+                                <figure>
+                                    {% include 'projects/_game_shot.html.twig' with {image: image, alt: game.name ~ ' — ' ~ image.caption} only %}
+                                    <figcaption>{{ image.caption }}</figcaption>
+                                </figure>
                             {% endfor %}
                         </div>
                     {% endif %}
-                    <p><strong>Problem:</strong> {{ project.problem }}</p>
-                    <p><strong>What was built:</strong> {{ project.built }}</p>
-                    <p><strong>Tech used:</strong> {{ project.tech }}</p>
-                    <a class="button" href="{{ project.url }}">View project</a>
+
+                    <div class="game-card__tech">
+                        <h4>Under the hood</h4>
+                        <p>{{ game.tech }}</p>
+                    </div>
                 </article>
             {% endfor %}
-        </div>
+        </section>
+
+        <section class="web-apps" id="web-apps" aria-labelledby="web-apps-heading">
+            <header class="section-intro">
+                <p class="eyebrow">$ ls ~/apps</p>
+                <h2 id="web-apps-heading">Web apps</h2>
+                <p class="section-intro__lead">Full-stack tools built to solve a real problem, running live on their own subdomains.</p>
+            </header>
+            <div class="projects__grid">
+                {% for project in projects %}
+                    <article class="project-card" id="{{ project.slug }}">
+                        <h3>{{ project.name }}</h3>
+                        {% if project.images|length %}
+                            <div class="project-card__images">
+                                {% for image in project.images %}
+                                    {% set label = image.path|split('/')|last|replace({'.png': '', '-': ' '})|title %}
+                                    <picture>
+                                        <source srcset="{{ asset(image.path|replace({'.png': '.webp'})) }}" type="image/webp">
+                                        <img
+                                            src="{{ asset(image.path) }}"
+                                            alt="{{ project.name }} — {{ label }} screenshot"
+                                            loading="lazy"
+                                            width="{{ image.width }}"
+                                            height="{{ image.height }}"
+                                        >
+                                    </picture>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <p><strong>Problem:</strong> {{ project.problem }}</p>
+                        <p><strong>What was built:</strong> {{ project.built }}</p>
+                        <p><strong>Tech used:</strong> {{ project.tech }}</p>
+                        <a class="button" href="{{ project.url }}">View project</a>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
         <div id="lightbox-root"></div>
     </section>
 {% endblock %}

@@ -3,5 +3,5 @@ import Lightbox from '../react/Lightbox.jsx';
 
 const root = document.getElementById('lightbox-root');
 if (root) {
-    createRoot(root).render(<Lightbox imageSelector=".project-card__images img" />);
+    createRoot(root).render(<Lightbox imageSelector=".project-card__images img, .game-card img" />);
 }

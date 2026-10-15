@@ -51,6 +51,25 @@ Everything left uncommitted in git, as usual, pending explicit go-ahead to commi
   - **Flagged, not fixed**: the pages are visually sparse with only one army/two units seeded (lots of empty whitespace) and the `army-detail.png` shot has a slightly odd-looking thumbnail crop on the "Tactical Squad" tile. Worth deciding whether to crop these tighter, add more demo data before a final shoot, or leave as an authentic in-progress look.
   - Created a disposable `portfolio-demo@local.test` admin account via `app:create-admin-user` for this session (turned out not to be needed — the public frontend's `/api/*` is unauthenticated — but it still exists in the local DB if not cleaned up).
 
+## Games Showcase — DONE (2026-10-15)
+- **What**: `/projects` now opens with a "Games" section (Tethered Darkness, The Village of
+  Suffering, Life Detected) ahead of the two web apps, which moved under a "Web apps" heading.
+  Each game card sells the concept first (status, genre, hook, pitch, features, a play button)
+  and the engineering after ("Under the hood"). The home page gets a "I also make games" teaser
+  row linking to each card, and the footer lists the playable games. Copy is in `content/copy.md`.
+- **Data**: `PortfolioContent::getGames()`. The first image is the cover. Each image is a 640px
+  PNG + `.webp` plus a 1280px `-full.webp` used by the cover's `srcset` and by the lightbox
+  (`data-full`). `tests/Content/PortfolioContentTest.php` fails if any of the three files is
+  missing or the declared width/height is wrong.
+- **Left out on purpose**: tradingdashboard (`noindex`, private), tradingbots (no public face)
+  and straintracker (personal data).
+- **Screenshots**: real captures of the live builds through Playwright from the Windows side,
+  using `playwright-core` pointed at the already-downloaded `ms-playwright/chromium-*` binary.
+  Village of Suffering: `?test&seed=7` skips the title and exposes `window.vos` hooks. Tethered
+  Darkness: battles were captured from its Vite dev server, where `window.game` lets a script
+  start the `Battle` scene with any encounter id. The Village of Suffering concept art is SDXL,
+  made locally, and its captions say so.
+
 ## Backend & Templates — DONE (2026-09-13)
 Build Order step 4. All six public pages are real Symfony routes rendering Twig, backed by content pulled from `content/copy.md` via a small `App\Content\PortfolioContent` service (injected everywhere as the Twig global `content`, and directly in controllers for page-specific data).
 

@@ -50,6 +50,7 @@ class SiteController extends AbstractController
     public function projects(): array
     {
         return [
+            'games' => $this->content->getGames(),
             'projects' => $this->content->getProjects(),
         ];
     }
