@@ -298,7 +298,18 @@ Pick one distinctive design element (asymmetric hero layout, a signature accent 
 8. SEO pass (see checklist above) — DONE (2026-09-13), see SEO Pass section above
 9. Cross-browser/device testing — DONE (2026-09-13), see Cross-Browser Testing section above
 
-## Deployment Workflow — GitHub Actions + FTP (revised 2026-09-13)
+## Deployment Workflow — deploy branch + cron pull (2026-10-15)
+Replaces the FTP deploy below, to match the games: every push to `main` that passes the tests is
+published to a `deploy` branch, and `~/public_html` on the host is a Git clone of it, pulled by a
+cron job that also runs migrations. Secrets moved from GitHub secrets to `~/portfolio.env` above
+the web root (loaded by `config/runtime.php`), and each build gets its own cache folder from the
+`BUILD` file (`Kernel::getCacheDir()`), which retires the FTP cache-invalidation workarounds. The
+flattened `public_html` layout is unchanged. How it works and the one-off switch-over:
+`docs/DEPLOY.md`. Dry-run before committing: the assembled tree served every page in prod mode
+with settings read from a file above it, Git would publish all 7,543 files, and the console saw
+the migration as executed.
+
+## Deployment Workflow — GitHub Actions + FTP (revised 2026-09-13, superseded 2026-10-15)
 **Superseded the original manual file-manager plan below** once `warhammer`'s `.github/workflows/`
 was found to already have a proven, working pattern for this exact Hostinger account — no SSH
 access, so it deploys over FTP from CI rather than clicking through the file manager, and generates

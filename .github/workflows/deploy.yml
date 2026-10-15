@@ -1,113 +1,121 @@
-name: Deploy to Hostinger
+name: Test and deploy
+
+# The same pipeline as the games: every push to main that passes the tests is
+# published to the `deploy` branch, and the host's Git clone of that branch
+# (public_html) pulls it on a cron job. Pull requests run the tests only.
+# One-off host setup and how it all fits together: docs/DEPLOY.md.
 
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch: {}
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+permissions:
+  contents: write
 
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # For the tests. Doctrine adds the _test suffix to the database name itself.
+    services:
+      database:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: ctype, iconv, intl, gd, pdo_mysql, mbstring, apcu
+          extensions: ctype, iconv, intl, gd, pdo_mysql, mbstring
+          tools: composer:v2
           coverage: none
 
-      - name: Install Composer dependencies
-        # APP_ENV=prod so post-install auto-scripts don't try to boot dev-only
-        # bundles (e.g. DebugBundle) that --no-dev has already removed.
-        env:
-          APP_ENV: prod
-        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
-
-      # Writes a real .env.local (git-ignored, generated fresh per deploy) so
-      # the app doesn't need server-side env var configuration, which
-      # Hostinger shared hosting doesn't expose. Deliberately NOT using
-      # `composer dump-env`: it ignores real process env vars by design and
-      # only reflects the committed .env files, so it can't be used to inject
-      # CI secrets - it would silently ship the dev DATABASE_URL to prod.
-      # Written before the build/warmup steps below so they run against the
-      # real prod config, not the dummy values in the committed .env.
-      - name: Write production environment
-        run: |
-          cat > .env.local <<'ENVEOF'
-          APP_ENV=prod
-          APP_SECRET="${{ secrets.PROD_APP_SECRET }}"
-          DATABASE_URL="${{ secrets.PROD_DATABASE_URL }}"
-          MAILER_DSN="${{ secrets.PROD_MAILER_DSN }}"
-          ENVEOF
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: 24
           cache: npm
-          cache-dependency-path: package-lock.json
 
-      - name: Install frontend dependencies
-        run: npm ci
+      - run: composer install --no-interaction --no-progress
+      - run: npm ci
+      # The templates read Vite's manifest, so the tests need the build too.
+      - run: npm run build
 
-      - name: Build frontend assets
-        # Outputs directly to public/build/ (Vite manifest + versioned files),
-        # no separate frontend/ directory or asset-mapper compile step needed.
-        run: npm run build
+      - name: Test
+        env:
+          DATABASE_URL: mysql://root:root@127.0.0.1:3306/portfolio?serverVersion=10.11.18-MariaDB&charset=utf8mb4
+        run: |
+          php bin/console doctrine:database:create --env=test --if-not-exists
+          php bin/console doctrine:migrations:migrate --env=test --no-interaction
+          php bin/phpunit
 
-      # This is a CI sanity check, not a cache to ship: it fails the build
-      # fast if a service/config error would otherwise only surface as a
-      # prod 500. var/cache/prod is NOT uploaded (see the "Deploy over FTP"
-      # exclude list and the cache-invalidation step below) - repeated
-      # attempts to transfer a pre-warmed cache over this host's FTPS proved
-      # unreliable (lftp's GnuTLS backend and FTP-Deploy-Action's own
-      # directory-handling both hit dead ends on the hundreds of small
-      # Twig/cache-pool shard directories a warmed cache produces). Instead,
-      # the server rebuilds its own cache on the first request after each
-      # deploy - see the "Invalidate remote cache" step comment.
-      - name: Warm up production cache
+      # The site to publish: production packages only, and .env compiled for
+      # prod. No secrets: on the host those live in ~/portfolio.env, outside
+      # the web root, loaded by config/runtime.php. BUILD names this deploy so
+      # Symfony starts a fresh cache (see Kernel::getCacheDir()), because the
+      # host pulls without running any commands.
+      - name: Assemble the site
         env:
           APP_ENV: prod
-        run: php bin/console cache:clear --env=prod --no-interaction
+        run: |
+          set -e
+          composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+          composer dump-env prod
+          echo "${GITHUB_SHA::12}" > BUILD
+          # Fails the job here, rather than as a blank 500 on the live site,
+          # if the production container doesn't compile.
+          php bin/console cache:warmup --env=prod --no-interaction
+          mkdir site
+          rsync -a \
+            --exclude /site/ --exclude /.git/ --exclude /.github/ --exclude /.claude/ \
+            --exclude /node_modules/ --exclude /assets/ --exclude /tests/ --exclude /var/ \
+            --exclude /docs/ --exclude /content/ --exclude /.phpunit.cache/ \
+            --exclude /bin/phpunit --exclude /phpunit.dist.xml \
+            --exclude '/compose*.yaml' --exclude /nginx.conf \
+            --exclude /.env.dev --exclude /.env.test --exclude /.env.local \
+            --exclude /package.json --exclude /package-lock.json --exclude /vite.config.js \
+            --exclude /composer.lock --exclude /symfony.lock \
+            --exclude /AGENTS.md --exclude /CLAUDE.md --exclude /.editorconfig \
+            --exclude /.gitignore --exclude /.gitattributes \
+            ./ site/
 
-      # This host's primary domain has its document root permanently fixed to
-      # public_html (hPanel's domain management shows "No configuration
-      # options currently exist" for it - only addon/subdomains support a
-      # custom document root), so the whole project can't just be uploaded
-      # as-is with the document root pointed at public/ the normal way. This
-      # was discovered the hard way: an earlier deploy without this step
-      # left public_html serving an Apache directory listing of the entire
-      # project - including .env.local, with real DB/mailer credentials.
+      # The primary domain's document root is fixed to public_html: the host
+      # offers no way to point it at public/. So public/'s contents become the
+      # site's root, with the rest of the app beside them, refused over HTTP.
+      # PHP's require() reads those files straight off disk, so the app still
+      # works; only fetching them as URLs is blocked. This is the same layout
+      # the FTP deploy used (see the git history of this file for the long
+      # story); only the delivery changed. Local Docker keeps the normal
+      # public/ layout. config/packages/pentatrion_vite.yaml points Vite at
+      # this layout in prod.
       #
-      # Fix: move public/'s contents up so index.php lands directly at the
-      # deploy root (matching public_html), and lock down every other
-      # top-level thing PHP still needs on disk (vendor/, src/, config/,
-      # templates/, translations/, var/, .env.local, composer.json) with a
-      # deny-all .htaccess/<FilesMatch> block. PHP's own require()/include()
-      # reads files directly off disk and never goes through Apache, so this
-      # doesn't break the app - it only blocks the same files from being
-      # served as plain HTTP responses. Only ever touches this CI checkout,
-      # never the repo - local dev keeps using the normal public/ layout via
-      # nginx, which doesn't consult .htaccess at all.
-      #
-      # composer.json specifically MUST stay in the deploy despite not being
-      # "needed" in an obvious sense: Kernel::getProjectDir() auto-detects
-      # the project root by walking up from src/Kernel.php looking for a
-      # composer.json file. Without it present anywhere, that walk silently
-      # falls back to returning the src/ directory itself as the project
-      # root, which breaks every path built from %kernel.project_dir% -
-      # templates, var/cache, config, translations all resolve to
-      # nonexistent paths under src/. This produced a blank prod 500 on
-      # every route and took real debugging (a diagnostic script forcing
-      # error display, since APP_DEBUG=0 normally hides it) to track down.
-      - name: Restructure for fixed public_html document root
+      # composer.json must stay: Kernel::getProjectDir() finds the project
+      # root by looking for it, and without it every path resolves under src/.
+      # .env must stay too: the compiled .env.local.php is built from it, and
+      # the container needs DEFAULT_URI from it.
+      - name: Restructure for the fixed public_html document root
+        working-directory: site
         run: |
           set -e
           sed -i 's#dirname(__DIR__)#__DIR__#' public/index.php
-          for dir in vendor src config templates translations var; do
-            if [ -d "$dir" ]; then
-              cat > "$dir/.htaccess" <<'DENYEOF'
+          mkdir -p var
+          for dir in bin config migrations src templates translations var vendor; do
+            cat > "$dir/.htaccess" <<'DENYEOF'
           <IfModule mod_authz_core.c>
               Require all denied
           </IfModule>
@@ -116,17 +124,14 @@ jobs:
               Deny from all
           </IfModule>
           DENYEOF
-            fi
           done
-          cat >> public/.htaccess <<'ENVDENYEOF'
+          cat >> public/.htaccess <<'ROOTEOF'
 
-          # Added at deploy time: never serve these over HTTP even though
-          # they must stay on disk (.env.local has real secrets; .env has
-          # committed non-secret defaults - see the DEFAULT_URI note below -
-          # but no reason to expose it either; composer.json is required by
-          # Kernel::getProjectDir()'s auto-detection, see the step comment
-          # above).
-          <FilesMatch "^(\.env|\.env\.local|composer\.json)$">
+          # Added by the deploy workflow. The site folder is a Git clone of the
+          # deploy branch, so never serve .git; and never serve the settings,
+          # build name or Composer files that sit beside the public files.
+          RedirectMatch 404 /\.git
+          <FilesMatch "^(\.env|\.env\.local|\.env\.local\.php|composer\.json|BUILD)$">
               <IfModule mod_authz_core.c>
                   Require all denied
               </IfModule>
@@ -135,169 +140,17 @@ jobs:
                   Deny from all
               </IfModule>
           </FilesMatch>
-          ENVDENYEOF
+          ROOTEOF
           shopt -s dotglob
           mv public/* .
           shopt -u dotglob
           rmdir public
 
-      # Every GitHub-hosted run starts from a clean checkout with no memory of
-      # what's already on the server, so without this, FTP-Deploy-Action
-      # treats every file (including all of vendor/, thousands of files) as
-      # new on every single deploy - a full resync over shared-hosting FTP,
-      # which is slow (~20+ min) and was seen dropping mid-transfer with
-      # "Server sent FIN packet unexpectedly". Caching the action's own state
-      # file between runs makes it re-diff against what it last uploaded, so
-      # normal deploys only transfer what actually changed. Keyed by run id
-      # (always a fresh cache miss) with a prefix restore-key so it still
-      # picks up the most recent previous state - the standard "growing
-      # cache" pattern, since actions/cache doesn't support mutating one key.
-      # The "-v2-" prefix bump below deliberately orphans every state file
-      # cached under the old "ftp-deploy-sync-state-" prefix. Two deploys in
-      # a row failed mid-upload (see git log around this line) - the "Deploy
-      # over FTP" step failing means its "Post Restore FTP sync state" save
-      # never runs, so the cached state stopped reflecting reality on the
-      # server after the first failure. The next run then diffed against
-      # that stale state, decided a directory FTP-Deploy-Action itself had
-      # never finished creating was now safe to remove, and 550'd trying to
-      # CWD into the folder it had just deleted to confirm the removal.
-      # Bumping the prefix makes this run start from no cached state at all,
-      # so FTP-Deploy-Action falls back to a full comparison-free upload
-      # (slower, ~20+ min per the note below, but can't misfire on a bad
-      # diff) and - assuming it succeeds - saves a fresh, accurate state
-      # that later incremental deploys can trust again.
-      - name: Restore FTP sync state
-        uses: actions/cache@v4
+      - name: Publish build to the deploy branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: .ftp-deploy-sync-state.json
-          key: ftp-deploy-sync-state-v2-${{ github.run_id }}
-          restore-keys: |
-            ftp-deploy-sync-state-v2-
-
-      # var/cache/prod is no longer uploaded at all (see the exclude list on
-      # "Deploy over FTP" and the "Warm up production cache" comment above) -
-      # every attempt to transfer or manage it over this host's FTPS proved
-      # unreliable: lftp's GnuTLS backend fatals with "gnutls_handshake: An
-      # unexpected TLS packet was received" on essentially any operation
-      # that needs a directory listing (mirror's file transfers, `mkdir -p`'s
-      # existence check, and - it turned out - even a large recursive `rm -r`
-      # over hundreds of nested Twig/cache-pool shard directories, which
-      # likely poisoned the session for the plain `mkdir`s that ran right
-      # after and failed with the identical error). FTP-Deploy-Action's own
-      # directory creation had a separate, unrelated bug in the same area
-      # (CWD into a path it hadn't created/recreated yet). Only single,
-      # exactly-named file deletes (no listing, no recursion) have been
-      # reliable throughout every attempt - so that's all this step does now.
-      #
-      # Instead of shipping a pre-warmed cache, this deletes just
-      # var/cache/prod/App_KernelProdContainer.php - the one file Symfony's
-      # Kernel actually checks for at boot. With APP_DEBUG off,
-      # ConfigCache::isFresh() short-circuits to true whenever that file
-      # exists, regardless of its content - see the old version of this
-      # comment for why var/cache/prod previously had to travel with the
-      # deploy at all: prod never re-validates a cache that's merely
-      # present. Deleting just that one bootstrap file makes isFresh() false,
-      # so Symfony rebuilds the entire container (and re-warms routes, Twig,
-      # etc.) fresh on the next request - the standard, supported way
-      # Symfony invalidates a prod cache when there's no way to run
-      # bin/console directly on the server. The rest of var/cache/prod
-      # (old container-hash directories, Twig/pool cache shards) is simply
-      # left in place - orphaned, harmless clutter that plays no part once
-      # the bootstrap file is gone, exactly how Symfony's own cache-pool
-      # namespacing already expects stale entries to be handled.
-      #
-      # src/var is a separate, one-off relic: an earlier deploy (before
-      # composer.json was included - see the "Restructure" step comment
-      # above) left Kernel::getProjectDir() falling back to src/ as the
-      # project root, so Symfony wrote a compiled container to
-      # src/var/cache/prod instead of the real var/cache/prod. Nothing in
-      # the local build tree lives at src/var, so FTP-Deploy-Action has no
-      # way to know that stray copy exists and never removes it - hence
-      # deleting it out-of-band here too.
-      #
-      # .ftp-deploy-sync-state.json was also found to have been uploaded to
-      # the live server on past deploys (it was never in the exclude list
-      # below), leaking CI bookkeeping onto the public filesystem. Deleting
-      # the current leaked copy here; the exclude list now stops it
-      # recurring.
-      #
-      # cmd:fail-exit off so a first-ever deploy (nothing to delete yet on a
-      # brand new server) doesn't fail the job.
-      # timeout 90 below is a hard backstop: a prior run hung indefinitely
-      # on this step (no output past `apt-get install`, still running 20+
-      # minutes later) instead of failing fast like every earlier attempt -
-      # likely lftp retrying a stalled connection with no bound
-      # (net:max-retries defaults to unlimited), rather than a fast TLS
-      # rejection like before. net:timeout/max-retries below bound lftp's
-      # own retry behavior; the outer `timeout` kills the whole process if
-      # it still doesn't return, so a bad connection fails this step in
-      # under two minutes instead of hanging for hours.
-      - name: Invalidate remote cache
-        run: |
-          sudo apt-get -qq update && sudo apt-get -qq install -y lftp
-          timeout 90 lftp -e "
-            set ssl:verify-certificate no;
-            set ftp:ssl-force true;
-            set cmd:fail-exit no;
-            set net:timeout 15;
-            set net:max-retries 2;
-            set net:reconnect-interval-base 5;
-            open -u ${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }} ftps://${{ secrets.FTP_SERVER }}:21;
-            rm -rf src/var;
-            rm -f .ftp-deploy-sync-state.json;
-            rm -f var/cache/prod/App_KernelProdContainer.php;
-            exit;
-          " || echo "Cache invalidation timed out or failed - continuing deploy anyway; a stale cache may need manual clearing on the server."
-
-      # .env (committed, non-secret defaults only - real secrets live in
-      # .env.local, written above) is deliberately NOT excluded below,
-      # despite an earlier version of this workflow excluding it "to be
-      # safe": Symfony's compiled prod container needs DEFAULT_URI (defined
-      # only in .env, used to build the router's RequestContext service)
-      # even for normal HTTP requests, not just the CLI context its comment
-      # suggests. Excluding .env caused a blank prod 500 on every route
-      # (EnvNotFoundException, only visible via a diagnostic script since
-      # APP_DEBUG=0 hides it). .env.local is loaded after .env and correctly
-      # overrides APP_ENV/APP_SECRET/DATABASE_URL/MAILER_DSN as intended;
-      # it's still denied over HTTP below alongside .env.local, same as any
-      # other file PHP needs on disk but nobody should fetch directly.
-      - name: Deploy over FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftps
-          timeout: 120000
-          log-level: verbose
-          state-name: .ftp-deploy-sync-state.json
-          server-dir: ./
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/tests/**
-            **/var/log/**
-            **/var/share/**
-            **/var/cache/**
-            .ftp-deploy-sync-state.json
-            **/.github/**
-            **/compose*.yaml
-            **/nginx.conf
-            **/.env.dev
-            **/.env.test
-            **/AGENTS.md
-            **/CLAUDE.md
-            **/docs/**
-            **/content/**
-            assets/**
-            **/bin/**
-            **/migrations/**
-            **/composer.lock
-            **/symfony.lock
-            **/package.json
-            **/package-lock.json
-            **/vite.config.js
-            **/phpunit.dist.xml
-            **/README*
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: deploy
+          publish_dir: ./site
+          commit_message: Deploy
