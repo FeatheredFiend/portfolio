@@ -1,0 +1,31 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin Login — {{ content.hero.name }}{% endblock %}
+{% block meta_description %}Admin login.{% endblock %}
+{% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block body %}
+    <section class="login">
+        <h1>Admin Login</h1>
+
+        {% if error %}
+            <p class="contact-form__error">{{ error.messageKey|trans(error.messageData, 'security') }}</p>
+        {% endif %}
+
+        <form class="contact-form" method="post">
+            <div class="contact-form__field">
+                <label for="username">Email</label>
+                <input type="email" id="username" name="_username" value="{{ last_username }}" required autofocus>
+            </div>
+
+            <div class="contact-form__field">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="_password" required>
+            </div>
+
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+            <button class="button button--primary" type="submit">Log in</button>
+        </form>
+    </section>
+{% endblock %}

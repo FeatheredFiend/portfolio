@@ -1,0 +1,55 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ hero.name }} — {{ hero.title }}{% endblock %}
+{% block meta_description %}{{ hero.valueProp }}{% endblock %}
+
+{% block body %}
+    <section class="hero">
+        <div class="hero__text">
+            <p class="hero__eyebrow">{{ hero.title }}</p>
+            <h1>{{ hero.name }}</h1>
+            <p class="hero__value-prop">{{ hero.valueProp }}</p>
+            <a class="button button--primary" href="{{ path('app_projects') }}">View My Work</a>
+        </div>
+        <div class="hero__panel" aria-hidden="true">
+            <p class="hero__panel-title">$ tech-stack --backend</p>
+            {% for item in content.techStack.Backend %}
+                <p class="hero__panel-line">&gt; {{ item }}</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="services-teaser">
+        <div class="services-teaser__grid">
+            {% for service in services %}
+                <article class="service-card">
+                    <h2>{{ service.problem }}</h2>
+                    <p>{{ service.body }}</p>
+                    <p class="service-card__outcome">{{ service.outcome }}</p>
+                </article>
+            {% endfor %}
+        </div>
+        <a class="button" href="{{ path('app_contact') }}">Let's talk</a>
+    </section>
+
+    <section class="games-teaser" aria-labelledby="games-teaser-heading">
+        <p class="eyebrow">$ ls ~/games</p>
+        <h2 id="games-teaser-heading">I also make games.</h2>
+        <p class="games-teaser__lead">Original browser games with my own engines underneath. Two are playable right now: no download, no install.</p>
+        <div class="games-teaser__grid">
+            {% for game in content.games %}
+                {% set cover = game.images|first %}
+                <a class="game-tile game-tile--{{ game.slug }}" href="{{ path('app_projects') }}#{{ game.slug }}">
+                    {% include 'projects/_game_shot.html.twig' with {image: cover, alt: ''} only %}
+                    <span class="game-tile__body">
+                        <span class="game-tile__status game-tile__status--{{ game.status }}">{{ game.status == 'playable' ? 'Playable now' : 'In development' }}</span>
+                        <span class="game-tile__name">{{ game.name }}</span>
+                        <span class="game-tile__genre">{{ game.genre }}</span>
+                        <span class="game-tile__hook">{{ game.hook }}</span>
+                    </span>
+                </a>
+            {% endfor %}
+        </div>
+        <a class="button button--primary" href="{{ path('app_projects') }}#games">See the games</a>
+    </section>
+{% endblock %}

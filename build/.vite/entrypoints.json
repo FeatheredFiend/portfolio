@@ -1,0 +1,47 @@
+{
+  "base": "/build/",
+  "entryPoints": {
+    "app": {
+      "css": [
+        "/build/assets/app-Bd-dhSoF.css"
+      ],
+      "dynamic": [],
+      "js": [
+        "/build/assets/app-Bc8d4KhN.js"
+      ],
+      "legacy": false,
+      "preload": []
+    },
+    "contact": {
+      "css": [],
+      "dynamic": [],
+      "js": [
+        "/build/assets/contact-BB2A3whN.js"
+      ],
+      "legacy": false,
+      "preload": [
+        "/build/assets/jsx-runtime-C63QiEK-.js"
+      ]
+    },
+    "gallery": {
+      "css": [],
+      "dynamic": [],
+      "js": [
+        "/build/assets/gallery-CSwxgghY.js"
+      ],
+      "legacy": false,
+      "preload": [
+        "/build/assets/jsx-runtime-C63QiEK-.js"
+      ]
+    }
+  },
+  "legacy": false,
+  "metadatas": {},
+  "version": [
+    "8.2.4",
+    8,
+    2,
+    4
+  ],
+  "viteServer": null
+}

@@ -1,0 +1,22 @@
+framework:
+    messenger:
+        transports:
+            # No consumer worker runs in this stack (see routing below), so the
+            # doctrine-backed async/failed transports from the skeleton default
+            # were removed rather than left unused with their own DB table.
+            sync: 'sync://'
+
+        default_bus: messenger.bus.default
+
+        buses:
+            messenger.bus.default: []
+
+        routing:
+            # No consumer worker runs in this stack, so mail/notifications are
+            # dispatched synchronously rather than queued to the unused async transport.
+            Symfony\Component\Mailer\Messenger\SendEmailMessage: sync
+            Symfony\Component\Notifier\Message\ChatMessage: sync
+            Symfony\Component\Notifier\Message\SmsMessage: sync
+
+            # Route your messages to the transports
+            # 'App\Message\YourMessage': async
