@@ -73,18 +73,19 @@ per card.
 
 (Add more entries here as more subdomain projects go live.)
 
-### Games (added 2026-10-15)
+### Games (added 2026-10-15, updated 2026-10-18)
 Shown first on `/projects` under their own "Games" heading, with a teaser row on the home page.
 Each sells the concept first (hook, pitch, features), then the engineering ("Under the hood").
-Screenshots are real captures of the live builds, except where a caption says concept art.
+Screenshots are real captures of the live builds, except where a caption says concept art or
+placeholder art.
 
-**Section intro**: Three original games for the browser, each designed, written and shipped by
-me, from the first greybox to the deploy pipeline. Two are playable right now: no download, no
-install, just click and play. They're also where I push the habits I bring to client work: game
-rules in pure, tested TypeScript kept apart from the rendering, content in validated data files
-instead of code, and CI that ships every green push.
+**Section intro**: Four original games for the browser, each designed, written and shipped by
+me, from the first greybox to the deploy pipeline. Three are playable right now and the fourth
+has its first level up: no download, no install, just click and play. They're also where I push
+the habits I bring to client work: game rules in pure, tested TypeScript kept apart from the
+rendering, content in validated data files instead of code, and CI that ships every green push.
 
-#### Tethered Darkness — gothic horror JRPG (playable: regions 1–4 of 6)
+#### Tethered Darkness — gothic horror JRPG (playable: start to finish, final art in progress)
 - **Hook**: Every grave in Hollowmere has a lantern, and the lanterns keep the dead below.
   Tonight they are going out.
 - **Pitch**: A disgraced knight, an occultist and a church cantor are left on a fen jetty by a
@@ -96,10 +97,13 @@ instead of code, and CI that ships every green push.
   the light costs you.
 - **Features**: light is a resource (lantern oil, unlit floors make monsters 20% stronger) ·
   real-time turn gauges · learn from the dead (Absorb, Steal, Guard) · no random battles ·
-  five hidden charms change the ending · keyboard, gamepad or touch, cloud saves in 3 slots.
+  six regions down (fens, ice, peaks, chasm, lava foundry, Hollowmere gone wrong) · five endings
+  from one choice at the bottom, with five hidden charms changing what it costs · keyboard,
+  gamepad or touch, cloud saves in 3 slots. Don't reveal who the ferryman really is.
 - **Under the hood**: TypeScript, Phaser 4, Vite, Zod-checked JSON, Ink dialogue; pure-TS battle
-  engine with a seeded RNG and a headless simulator for balancing; Symfony 8.1 API + MySQL for
-  accounts and saves; GitHub Actions deploys every green push.
+  engine with a seeded RNG and a headless simulator for balancing, plus a route tool that plays
+  each region in story order carrying levels and gear; Symfony 8.1 API + MySQL for accounts and
+  saves; GitHub Actions deploys every green push.
 - **Links**: https://tethered-darkness.proprietary-data.com · images in
   `public/images/portfolio/tethered-darkness/`
 
@@ -115,30 +119,59 @@ instead of code, and CI that ships every green push.
   twenty-fifth level wakes up and notices you.
 - **Features**: build your army from the dead (6–12 bones, organs, flesh, armour) · a new
   dungeon every dawn, stranded armies dig out · bring your own light · the church, the mob and
-  the Red Cardinal · eight jobs, dead villagers rise with a perk · phone-ready touch controls.
+  the Red Cardinal · eight jobs, dead villagers rise with a perk · loot worth going deeper for
+  (four gear tiers, gems and sockets, a trading post) · a guide for the first three days, then
+  hints; mouse or phone; Gentle, Grim or Merciless.
 - **Under the hood**: TypeScript, Phaser 4; fixed-tick seeded simulation on a grid with A*,
-  isometric only in rendering; all content in JSON; a scripted player balances whole seasons in
-  the test suite; layered Blender sprites in 8 directions; the same Symfony save API.
+  isometric only in rendering; all content in JSON; a scripted player balances whole seasons on
+  every difficulty in the test suite; layered Blender sprites in 8 directions; the village painted
+  in ComfyUI over Blender blockouts; the same Symfony save API.
 - **Links**: https://village-of-suffering.proprietary-data.com · images in
   `public/images/portfolio/village-of-suffering/` (concept art is SDXL, made locally, and
   captioned as such)
 
-#### Life Detected — retro-plus first-person shooter (in development)
+#### Assimilate — physics merge puzzler (playable: final art and sound to come; added 2026-10-18)
+- **Hook**: Two of a kind that touch assimilate into the next thing up. It's fifteen steps from a
+  heart to Nanna.
+- **Pitch**: Drop things into the jar. Two of a kind that touch become one of the next thing up:
+  hearts into leaves, kiwis into cats, cats into things with too many eyes, all the way up to
+  Nanna. The pile only grows, and the run is over when it stays above the line for two seconds.
+  / It's the merge game you know, with rot in it. Anything left a minute lights a fuse and burns
+  out into a dead black block, and a black block left five minutes explodes and throws the jar
+  about. You can't nurse one old stack for ever: the longer a piece sits, the more of a problem
+  it becomes.
+- **Features**: fifteen tiers (heart, cannabis leaves, kiwi, four cats, grotesques, the
+  Assimilator, Nanna; two Nannas vanish for a bonus) · fuses and black blocks · black blocks
+  explode after five minutes · combos (0.6 s, up to 3x) and merges that pop harder · one thumb.
+- **Under the hood**: TypeScript, Phaser 3 for drawing and input, rules on Matter.js used
+  directly in plain TypeScript; Vitest plays whole runs headless and runs replay from a seed;
+  merges found by measuring after each step (Matter's polygon circles rest apart); one tuning
+  file and a bot at three paces; placeholder art drawn in code as SVG into a WebP atlas; Web
+  Audio synthesis; GitHub Actions deploys every green push.
+- **Links**: https://assimilate.proprietary-data.com · images in
+  `public/images/portfolio/assimilate/` (the cover is three portrait captures side by side; the
+  tier sheet is built from the game's own placeholder masters and captioned as such)
+
+#### Life Detected — sci-fi horror first-person shooter (in development: first level playable)
 - **Hook**: A motion tracker you listen to, and corridors darker than they should be.
 - **Pitch**: You hear it before you see it. The tracker sweeps once a second, and every ping
   shows movement, never walls: something is in here with you, and you can't tell where the room
   ends. Creatures give themselves away by sound first, so the audio isn't decoration. It's the
   level design. / It's built the way the best mid-90s shooters were, where every level has a job
-  to do, not just an exit to find: get the keycard, destroy the nest, bring the survivors out,
-  with a briefing going in and a tally on the way out. Low-poly models under modern lighting
-  keep that 1996 feel, and the shadows do the frightening.
-- **Features**: the motion tracker · objectives, not just exits · the torch is the main light ·
-  instant to play (first level under 15 MB, WebGPU with WebGL 2 fallback).
+  to do, not just an exit to find: get the keycards, destroy the nests, bring the survivors out,
+  with a briefing going in and a tally on the way out. The look aims well past the era: sculpted
+  creatures, scanned materials and a torch that throws real shadows, somewhere between Doom 3
+  and the 2016 Doom.
+- **Features**: the motion tracker (gun or tracker, never both) · objectives, not just exits
+  (the first level: two keycards, sixteen sacs, the exit) · things that hatch (sacs, parasites,
+  grunts that hunt and open doors) · the torch is the main light · instant to play (WebGPU with
+  WebGL 2 fallback, keyboard and mouse or gamepad). Touch controls are being built: don't claim
+  them until they ship.
 - **Under the hood**: Three.js WebGPU renderer; pure-TS engine at a fixed 60 Hz with a seeded
-  RNG and headless Vitest playthroughs; Zod-checked grid levels; A* creatures; scripted Blender
-  and ComfyUI asset pipeline with meshopt and KTX2; one finished level is playtested before the
-  campaign.
-- **Links**: https://life-detected.proprietary-data.com (holding page) · image in
+  RNG, and a Vitest bot that plays the first level from briefing to tally; Zod-checked grid
+  levels; A* creatures; the grunt sculpted by script on a MakeHuman body in Blender, baked and
+  rigged; scanned CC0 materials as KTX2; the first level is playtested before the campaign.
+- **Links**: https://life-detected.proprietary-data.com (the first level) · images in
   `public/images/portfolio/life-detected/`
 
 ## Experience & Education
