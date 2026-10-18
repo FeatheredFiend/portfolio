@@ -70,6 +70,27 @@ Everything left uncommitted in git, as usual, pending explicit go-ahead to commi
   start the `Battle` scene with any encounter id. The Village of Suffering concept art is SDXL,
   made locally, and its captions say so.
 
+## Games Update — DONE (2026-10-18)
+- **Assimilate added** (physics merge puzzler, playable) between The Village of Suffering and
+  Life Detected, with its own accent colour, a home teaser tile and a footer link. Assimilate is
+  portrait, so its cover is three 540 × 960 captures of the live build side by side at 16:9;
+  the gallery has a 16:9 crop of the jar and a labelled sheet of the fifteen tiers built from the
+  game's placeholder masters (`art/masters/`), captioned as placeholder art. Live hook:
+  `?test&seed=N` exposes `window.assimilate` (`place`, `drop`, `fast`, `restart`, `state`).
+- **Tethered Darkness** now plays start to finish (six regions, five endings): new status,
+  features and tech, and late-game captures (the Crowned Furnace, the Drowned Church, the Bell)
+  from the dev server with the party raised by `levelUp` to a fitting level. Keep the ferryman's
+  secret out of the copy.
+- **The Village of Suffering**: send-down and dawn-jobs re-shot on the live build with the new
+  HUD and painted ground, plus a night in the graveyard; features for loot, the guide and
+  difficulties; the places-below concept art dropped to keep the gallery to one row.
+- **Life Detected**: the live site is the first level now, not a holding page. New genre (the
+  look moved past retro-plus), status, CTA and features; captures of the live slice on the real
+  GPU (Windows Node, WebGPU) without `&debug`, using `?test&seed=1&start=x,z,facing` and
+  `&still` (grunts blind and deaf) as `~/ld-shot/grunt.mjs` does.
+- **Tests**: the Assimilate card and button, Life Detected's new button, all four teaser tiles,
+  and the footer listing only the playable games.
+
 ## Backend & Templates — DONE (2026-09-13)
 Build Order step 4. All six public pages are real Symfony routes rendering Twig, backed by content pulled from `content/copy.md` via a small `App\Content\PortfolioContent` service (injected everywhere as the Twig global `content`, and directly in controllers for page-specific data).
 

@@ -336,6 +336,11 @@ main {
     --game-accent: #d9434d;
 }
 
+.game-card--assimilate,
+.game-tile--assimilate {
+    --game-accent: #a78bfa;
+}
+
 .game-card--life-detected,
 .game-tile--life-detected {
     --game-accent: #ff8f3a;

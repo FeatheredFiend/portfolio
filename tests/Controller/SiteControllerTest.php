@@ -46,7 +46,11 @@ class SiteControllerTest extends WebTestCase
         self::assertSelectorExists('#tethered-darkness a.button[href="https://tethered-darkness.proprietary-data.com"]');
         self::assertSelectorTextContains('#village-of-suffering h3', 'The Village of Suffering');
         self::assertSelectorExists('#village-of-suffering a.button[href="https://village-of-suffering.proprietary-data.com"]');
+        self::assertSelectorTextContains('#assimilate h3', 'Assimilate');
+        self::assertSelectorTextContains('#assimilate .game-card__status', 'Playable now');
+        self::assertSelectorExists('#assimilate a.button--game[href="https://assimilate.proprietary-data.com"]');
         self::assertSelectorTextContains('#life-detected .game-card__status', 'In development');
+        self::assertSelectorTextContains('#life-detected a.button[href="https://life-detected.proprietary-data.com"]', 'Play the first level');
         self::assertSelectorTextContains('#web-apps h2', 'Web apps');
         self::assertSelectorExists('#web-apps #miniature-collection-tracker');
         self::assertSelectorExists('#web-apps #cyoa-builder');
@@ -58,9 +62,18 @@ class SiteControllerTest extends WebTestCase
         $client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        foreach (['tethered-darkness', 'village-of-suffering', 'life-detected'] as $slug) {
+        foreach (['tethered-darkness', 'village-of-suffering', 'assimilate', 'life-detected'] as $slug) {
             self::assertSelectorExists(sprintf('.games-teaser a[href="/projects#%s"]', $slug));
         }
+    }
+
+    public function testFooterListsOnlyThePlayableGames(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/');
+
+        self::assertSelectorExists('.site-footer__projects a[href="https://assimilate.proprietary-data.com"]');
+        self::assertSelectorNotExists('.site-footer__projects a[href="https://life-detected.proprietary-data.com"]');
     }
 
     public function testSitemapListsPublicRoutes(): void
