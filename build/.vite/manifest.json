@@ -4,12 +4,12 @@
     "name": "jsx-runtime"
   },
   "assets/app.js": {
-    "file": "assets/app-Bc8d4KhN.js",
+    "file": "assets/app-o3A7Ogdo.js",
     "name": "app",
     "src": "assets/app.js",
     "isEntry": true,
     "css": [
-      "assets/app-Bd-dhSoF.css"
+      "assets/app-Bf8XTX0M.css"
     ]
   },
   "assets/islands/contact.jsx": {
